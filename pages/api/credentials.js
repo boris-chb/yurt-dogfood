@@ -1,31 +1,24 @@
-import Cors from 'cors';
+import cors from 'cors';
 
-const cors = Cors({
-  methods: ['POST', 'GET', 'HEAD'],
+// Set up CORS middleware
+const corsMiddleware = cors({
+  origin: '*', // Allow any origin to access the resource
+  methods: ['POST', 'GET'], // Allow only POST requests
 });
 
-function runMiddleware(req, res, fn) {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) {
-        return reject(result);
-      }
-
-      return resolve(result);
-    });
-  });
-}
-
 export default async function handler(req, res) {
-  await runMiddleware(req, res, cors);
+  corsMiddleware(req, res, () => {
+    if (req.method === 'POST') {
+      const allowedUsers = ['bciobirca'];
+      let body = await req.json();
+      console.log(body);
 
-  if (req.method === 'POST') {
-    const allowedUsers = ['bciobirca'];
-    let body = await req.json();
-    console.log(body);
-  }
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.status(200).json({ message: 'POST success' });
+    }
 
-  if (req.method === 'GET') {
-    res.status(200).json({ allowed: true });
-  }
+    if (req.method === 'GET') {
+      res.status(200).json({ allowed: true });
+    }
+  });
 }
