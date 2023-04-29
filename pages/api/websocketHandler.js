@@ -1,8 +1,36 @@
 import { Server } from 'socket.io';
+import Cors from 'cors';
 
-export default async function websocketHandler(req, res) {
+// Initializing the cors middleware
+// You can read more about the available options here: https://github.com/expressjs/cors#configuration-options
+const cors = Cors({
+  methods: ['POST', 'GET', 'HEAD'],
+});
+
+// Helper method to wait for a middleware to execute before continuing
+// And to throw an error when an error happens in a middleware
+function runMiddleware(req, res, fn) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result) => {
+      if (result instanceof Error) {
+        return reject(result);
+      }
+
+      return resolve(result);
+    });
+  });
+}
+
+export default async function handler(req, res) {
+  await runMiddleware(req, res, cors);
+
   if (req.method === 'POST') {
     // Perform WebSocket handshake
+
+    try {
+    } catch (e) {
+      console.error(error);
+    }
     const io = new Server();
     const socket = await new Promise((resolve) => {
       io.on('connection', (socket) => {
@@ -28,6 +56,7 @@ export default async function websocketHandler(req, res) {
       console.log(`WebSocket connection closed`);
     });
   } else {
+    res.send('');
     res.status(405).end();
   }
 }
