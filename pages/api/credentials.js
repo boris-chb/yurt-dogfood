@@ -26,8 +26,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const allowedUsers = ['bciobirca'];
 
-    const data = await req.json();
-    console.log(data);
+    console.log(req.body);
 
     if (!allowedUsers.includes(data.user)) {
       return res.status(401).json({ allowed: false });
