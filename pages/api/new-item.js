@@ -1,5 +1,11 @@
 export default function handler(req, res) {
-  if (req.method !== "POST") return;
+  if (req.method !== 'POST')
+    return new Response('Only post requests', { status: 400 });
 
-  res.status(200).send({ result: "it works bro" });
+  const allowedUsers = ['bciobirca'];
+
+  let body = await request.json();
+  console.log(body);
+
+  res.status(200).send({ result: 'it works bro' });
 }
