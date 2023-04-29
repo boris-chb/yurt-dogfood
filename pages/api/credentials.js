@@ -26,11 +26,15 @@ export default async function handler(req, res) {
 
   jsonParser(req, res, async () => {
     if (req.method === 'POST') {
-      const allowedUsers = ['bciobirca'];
-      const data = req.body;
+      const allowedUsers = [];
+      const data = JSON.parse(req.body);
       console.log(data);
 
-      res.status(200).json({ message: 'POST success' });
+      if (!allowedUsers.includes(data.user)) {
+        res.status(401).json({ allowed: false });
+      }
+
+      res.status(200).json({ allowed: true });
     }
 
     if (req.method === 'GET') {
