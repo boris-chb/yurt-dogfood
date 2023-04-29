@@ -32,9 +32,9 @@ export default async function handler(req, res) {
 
       if (!allowedUsers.includes(data.user)) {
         res.status(401).json({ allowed: false });
+      } else {
+        res.status(200).json({ allowed: true });
       }
-
-      res.status(200).json({ allowed: true });
     }
 
     if (req.method === 'GET') {
