@@ -7,6 +7,12 @@ const cors = Cors({
   methods: ['POST', 'GET', 'HEAD'],
 });
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 // Helper method to wait for a middleware to execute before continuing
 // And to throw an error when an error happens in a middleware
 function runMiddleware(req, res, fn) {
@@ -24,28 +30,30 @@ function runMiddleware(req, res, fn) {
 export default async function handler(req, res) {
   await runMiddleware(req, res, cors);
 
-  const io = new Server();
-  const socket = await new Promise((resolve) => {
+  if (req.method === 'GET') {
+    const server = createServer();
+    const io = new Server(server);
+    const port = process.env.PORT || 3000;
+
     io.on('connection', (socket) => {
-      resolve(socket);
+      console.log(`Client connected: ${socket.id}`);
+
+      socket.on('message', (data) => {
+        console.log(`Received message from client: ${data}`);
+        socket.emit('message', `Echo: ${data}`);
+      });
+
+      socket.on('disconnect', () => {
+        console.log(`Client disconnected: ${socket.id}`);
+      });
     });
-    io.attach(req.socket);
-  });
 
-  // Handle WebSocket messages
-  socket.on('message', (message) => {
-    console.log(`Received message from client: ${message}`);
-    // Send a message back to the client
-    socket.emit('message', `Hello, client! You said: ${message}`);
-  });
+    server.listen(port, () => {
+      console.log(`WebSocket server listening on port ${port}`);
+    });
 
-  // Handle WebSocket errors
-  socket.on('error', (error) => {
-    console.error(`WebSocket error: ${error}`);
-  });
-
-  // Handle WebSocket close
-  socket.on('close', () => {
-    console.log(`WebSocket connection closed`);
-  });
+    io.attach(server);
+  } else {
+    res.status(404).end();
+  }
 }
