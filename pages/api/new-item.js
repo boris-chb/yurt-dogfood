@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST')
     return new Response('Only post requests', { status: 400 });
 
