@@ -22,7 +22,7 @@ function runMiddleware(req, res, fn) {
   });
 }
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   await runMiddleware(req, res, cors);
 
   res.status(200).json({ name: 'Elya' });
