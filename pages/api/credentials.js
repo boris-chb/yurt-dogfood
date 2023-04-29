@@ -6,8 +6,8 @@ const corsMiddleware = cors({
   methods: ['POST', 'GET'], // Allow only POST requests
 });
 
-export default async function handler(req, res) {
-  corsMiddleware(req, res, () => {
+export default function handler(req, res) {
+  corsMiddleware(req, res, async () => {
     if (req.method === 'POST') {
       const allowedUsers = ['bciobirca'];
       let body = await req.json();
