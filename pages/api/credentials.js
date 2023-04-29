@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const allowedUsers = ['bciobirca'];
 
-    console.log(req.body);
+    const data = req.body;
 
     if (!allowedUsers.includes(data.user)) {
       return res.status(401).json({ allowed: false });
@@ -34,10 +34,4 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ allowed: true });
   }
-
-  if (req.method === 'GET') {
-    return res.status(200).json({ allowed: true });
-  }
-
-  return res.status(405).json({ message: 'Method Not Allowed' });
 }
