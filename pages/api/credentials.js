@@ -21,7 +21,7 @@ const cors = initMiddleware(
 
 const jsonParser = bodyParser.json();
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   await cors(req, res);
 
   jsonParser(req, res, async () => {
