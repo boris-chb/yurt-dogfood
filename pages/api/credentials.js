@@ -31,14 +31,16 @@ export default async function handler(req, res) {
   jsonParser(req, res, async () => {
     if (req.method === 'POST') {
       const allowedUsers = ['bciobirca'];
-      const data = JSON.parse(req.body);
-      console.log(data);
 
-      if (!allowedUsers.includes(data.user)) {
-        return res.status(401).json({ allowed: false });
-      }
+      console.log(req.body);
+      // const data = JSON.parse(req.body);
+      // console.log(data);
 
-      return res.status(200).json({ allowed: true });
+      // if (!allowedUsers.includes(data.user)) {
+      //   return res.status(401).json({ allowed: false });
+      // }
+
+      // return res.status(200).json({ allowed: true });
     }
 
     if (req.method === 'GET') {
