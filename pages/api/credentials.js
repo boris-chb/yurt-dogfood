@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       console.log(req.body);
       console.log(typeof req.body);
       console.log(req.body.user);
-      res.status(200);
+      return res.status(200);
       // const data = JSON.parse(req.body);
       // console.log(data);
 
@@ -50,4 +50,6 @@ export default async function handler(req, res) {
       res.status(200).json({ allowed: true });
     }
   });
+
+  return new Response('all good', { status: 200 });
 }
