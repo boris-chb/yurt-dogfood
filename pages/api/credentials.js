@@ -33,6 +33,9 @@ export default async function handler(req, res) {
       const allowedUsers = ['bciobirca'];
 
       console.log(req.body);
+      console.log(typeof req.body);
+      console.log(req.body.user);
+      res.status(200);
       // const data = JSON.parse(req.body);
       // console.log(data);
 
