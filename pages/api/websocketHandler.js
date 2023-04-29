@@ -1,4 +1,6 @@
 import { Server } from 'socket.io';
+import { createServer } from 'http';
+
 import Cors from 'cors';
 
 // Initializing the cors middleware
