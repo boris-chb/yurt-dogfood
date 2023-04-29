@@ -13,7 +13,6 @@ export default function handler(req, res) {
       let body = await req.json();
       console.log(body);
 
-      res.setHeader('Access-Control-Allow-Origin', '*');
       res.status(200).json({ message: 'POST success' });
     }
 
