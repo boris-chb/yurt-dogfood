@@ -19,13 +19,13 @@ function runMiddleware(req, res, fn) {
 export default async function handler(req, res) {
   await runMiddleware(req, res, cors);
 
-  if (req.method !== 'POST')
-    return new Response('Only post requests', { status: 400 });
+  if (req.method === 'POST') {
+    const allowedUsers = ['bciobirca'];
+    let body = await req.json();
+    console.log(body);
+  }
 
-  const allowedUsers = ['bciobirca'];
-
-  let body = await request.json();
-  console.log(body);
-
-  res.status(200).send({ result: 'it works bro' });
+  if (req.method === 'GET') {
+    res.status(200).json({ allowed: true });
+  }
 }
