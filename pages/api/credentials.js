@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   await runMiddleware(req, res, cors);
 
   if (req.method === 'POST') {
-    const allowedUsers = ['bciobirca'];
+    const allowedUsers = ['bciobirca', 'medvedicyna', 'rmamaliga'];
 
     const data = req.body;
 
