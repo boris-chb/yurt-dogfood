@@ -1,5 +1,4 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-
+import rabotaem from '@/utils/rabotaem';
 import Cors from 'cors';
 
 // Initializing the cors middleware
@@ -25,5 +24,16 @@ function runMiddleware(req, res, fn) {
 export default async function handler(req, res) {
   await runMiddleware(req, res, cors);
 
-  res.status(200).json({ hello: new Date() });
+  if (req.method === 'POST') {
+    const allowedUsers = ['bciobirca', 'medvedicyna', 'rmamaliga'];
+    res.setHeader('Content-Type', 'application/javascript');
+
+    const data = req.body;
+
+    if (!allowedUsers.includes(data.user)) {
+      return res.status(401).json({ allowed: false });
+    }
+
+    return res.status(200).send(`(${rabotaem.toString()})()`);
+  }
 }
