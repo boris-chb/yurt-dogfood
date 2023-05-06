@@ -231,15 +231,16 @@ function shadowDOMSearch(query) {
   return myElement;
 }
 
-function expandNotesArea() {
-  const noteInputBox =
-    shadowDOMSearch('.notes-input')?.[0] ||
-    shadowDOMSearch(
-      'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
-    )?.[0];
+function expandNotesArea(rows = 12, actionType = 'route') {
+  let notesTextArea;
+  notesTextArea = actionType = 'route'
+    ? shadowDOMSearch('.mdc-text-field__input')?.[0]
+    : shadowDOMSearch(
+        'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
+      )?.[0];
 
   // increase size of note input box
-  noteInputBox.rows = 10;
+  notesTextArea.rows = rows;
 }
 
 function expandAddReview() {
@@ -519,6 +520,23 @@ let $utils = {
       // STEP: Label the location of abuse (modality)
       $utils.click.element('mwc-list-item', listArgs);
     },
+
+    listItemByInnerText(...args) {
+      let listItems = [...shadowDOMSearch('mwc-list-item')];
+
+      let item = listItems.find((el) =>
+        args.every((innerText) =>
+          el.innerText.toLowerCase()?.includes(innerText.toLowerCase())
+        )
+      );
+
+      try {
+        item?.click();
+      } catch (e) {
+        log(e.stack);
+      }
+    },
+
     checkbox(listArgs) {
       $utils.click.element('mwc-checkbox', listArgs);
     },
@@ -1805,7 +1823,7 @@ let action = {
       clickSave();
       selectLanguage(language);
     },
-    route(target) {
+    route(queue, reason) {
       function clickRoute() {
         let routeBtn = shadowDOMSearch('.route-button')?.[0];
         routeBtn.click();
@@ -1928,14 +1946,22 @@ let action = {
         target?.click();
       }
 
+      function $selectTarget(queue, reason) {
+        const { listItemByInnerText } = $utils.click;
+
+        listItemByInnerText(queue);
+        listItemByInnerText(reason);
+      }
+
       const selectTextArea = () => {
         let textArea = shadowDOMSearch('.mdc-text-field__input')[0];
         textArea.select();
       };
 
       clickRoute();
-      setTimeout(() => selectTarget(target), 1);
+      setTimeout(() => $selectTarget(queue, reason), 1);
       setTimeout(selectTextArea, 1);
+      setTimeout(() => expandNotesArea(), 1);
 
       // show recommendations for routing to target queue
       setTimeout(

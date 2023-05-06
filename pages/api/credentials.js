@@ -31,6 +31,7 @@ export default async function handler(req, res) {
       'boykon',
       'dudnik',
       'andrisv',
+      'stasenco',
     ];
 
     const data = req.body;
