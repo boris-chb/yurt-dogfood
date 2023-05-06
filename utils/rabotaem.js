@@ -2,17 +2,20 @@
 
 export default async function rabotaem() {
   const checkCredentials = async () => {
-    let res = await fetch('https://yurt-dogfood.vercel.app/api/credentials', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user: yt.config_.LOGGED_IN_USER,
-      }),
-    }).then((response) => response.json());
+    let { allowed } = await fetch(
+      'https://yurt-dogfood.vercel.app/api/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user: yt.config_.LOGGED_IN_USER,
+        }),
+      }
+    ).then((response) => response.json());
 
-    return res.allowed;
+    return allowed;
   };
 
   let isAllowed = await checkCredentials();
@@ -498,7 +501,7 @@ export default async function rabotaem() {
               )
             : undefined;
 
-          console.log(`[🔍] list-item[${filterKey}=${filterValue}]`);
+          log(`[🔍] list-item[${filterKey}=${filterValue}]`);
 
           btn = foundBtn;
         } else {
@@ -515,8 +518,7 @@ export default async function rabotaem() {
         if (btnMissingOrDisabled && retries) {
           retries--;
 
-          retries % 10 === 0 &&
-            console.log(retries, `[♻] Looking for ${queryStr}`);
+          retries % 10 === 0 && log(retries, `[♻] Looking for ${queryStr}`);
 
           setTimeout(
             () => $utils.click.element(queryStr, null, retries),
@@ -661,7 +663,7 @@ export default async function rabotaem() {
           secondsTotal = parseInt(m) * 60 + parseInt(s);
         }
 
-        console.log(secondsTotal);
+        log(secondsTotal);
 
         videoRoot.playerApi.seekTo(secondsTotal);
       },
@@ -708,10 +710,10 @@ export default async function rabotaem() {
         let currentQuestions = shadowDOMSearch(
           'yurt-core-label-questionnaire-question-type-mapper'
         )?.[0]?.currentQuestions;
-        console.log('current questions:', currentQuestions);
+        log('current questions:', currentQuestions);
 
         if (!currentQuestions) {
-          console.log('[?] Could not find questionnaire.currentQuestion');
+          log('[?] Could not find questionnaire.currentQuestion');
           return;
         }
 
@@ -720,13 +722,13 @@ export default async function rabotaem() {
         if (currentQuestions?.length > 1) {
           // answer all questions:
           currentQuestions.forEach((subquestion) => {
-            console.log('[i] subq', subquestion);
+            log('[i] subq', subquestion);
             let lastElementIndex = subquestion.id.split('/').length - 1;
             let questionId = subquestion.id.split('/')[lastElementIndex];
 
             if (questionId === 'abuse_location') {
-              console.log(abuse_location.listItem);
-              console.log(abuse_location.checklist);
+              log(abuse_location.listItem);
+              log(abuse_location.checklist);
               listItem(abuse_location.listItem);
               checklist(abuse_location.checklist);
               clickNext();
@@ -740,7 +742,7 @@ export default async function rabotaem() {
               let featured_person = shadowDOMSearch(
                 `mwc-checkbox[value=featured_person]`
               )[0];
-              console.log(featured_person);
+              log(featured_person);
               featured_person.click();
             } else if (questionId === 'video_contents') {
               video_contents.forEach((arg) => checkbox(arg));
@@ -765,7 +767,7 @@ export default async function rabotaem() {
               listItem(confidence_level);
             }
 
-            console.log('✅ SUBQuestion Answered: ', questionId);
+            log('✅ SUBQuestion Answered: ', questionId);
           });
         }
 
@@ -774,8 +776,8 @@ export default async function rabotaem() {
         let questionId = currentQuestions?.[0].id.split('/')[lastElementIndex];
 
         if (questionId === 'abuse_location') {
-          console.log(abuse_location.listItem);
-          console.log(abuse_location.checklist);
+          log(abuse_location.listItem);
+          log(abuse_location.checklist);
           listItem(abuse_location.listItem);
           checklist(abuse_location.checklist);
           clickNext();
@@ -810,11 +812,11 @@ export default async function rabotaem() {
           listItem(confidence_level);
         }
 
-        console.log('✅ Question Answered: ', questionId);
+        log('✅ Question Answered: ', questionId);
 
         if (currentQuestions?.deferTraversal) {
           $utils.clickDone();
-          console.log('Successfully submitted questioonaire');
+          log('Successfully submitted questioonaire');
         }
       },
       getQuestionnaire() {
@@ -918,7 +920,7 @@ export default async function rabotaem() {
     setTimer(vremya, reload = false) {
       // clean old submit timer
       if ($timers.SUBMIT_ID) {
-        console.log(`Cleaning up timerId: ${$timers.SUBMIT_ID}.`);
+        log(`Cleaning up timerId: ${$timers.SUBMIT_ID}.`);
         clearTimeout($timers.SUBMIT_ID);
         $timers.SUBMIT_ID = null;
         console.table($timers);
@@ -926,7 +928,7 @@ export default async function rabotaem() {
 
       // clean old reload timer
       if ($timers.RELOAD_ID) {
-        console.log(`[i] Cleaning up reloadId: ${$timers.RELOAD_ID}.`);
+        log(`[i] Cleaning up reloadId: ${$timers.RELOAD_ID}.`);
         clearTimeout($timers.RELOAD_ID);
         $timers.RELOAD_ID = null;
       }
@@ -940,7 +942,7 @@ export default async function rabotaem() {
         vremya * 60 * 1000
       );
 
-      console.log(
+      log(
         `⌚ ✅ Submit in ${vremya} minutes, at ${new Date(
           Date.now() + vremya * 60 * 1000
         )
@@ -950,7 +952,7 @@ export default async function rabotaem() {
       );
 
       if ($const.is.autosubmit()) {
-        console.log(`🔃 ... with reload.`);
+        log(`🔃 ... with reload.`);
 
         $timers.RELOAD_ID = setTimeout(
           window.location.close.bind(window.location),
@@ -1019,7 +1021,7 @@ export default async function rabotaem() {
         lock.lockTimeoutSec = 1200;
         lock.secondsToExpiry = 1200;
       }
-      console.log(
+      log(
         `🔐LOCK: ${$utils.formatTime(
           shadowDOMSearch('yurt-review-activity-dialog')[0].secondsToExpiry
         )}`
@@ -1085,7 +1087,7 @@ export default async function rabotaem() {
     let lastElementIndex = question.id.split('/').length - 1;
     let questionId = question.id.split('/')[lastElementIndex];
 
-    console.log(`[❔] Answering ${questionId}.`);
+    log(`[❔] Answering ${questionId}.`);
 
     // Video Strike
     if (questionId === 'abuse_location') {
@@ -1123,12 +1125,12 @@ export default async function rabotaem() {
     // Click Next after answering each question, just to be sure
     clickNext();
 
-    console.log(`[✅] Question Answered: ${questionId}`);
+    log(`[✅] Question Answered: ${questionId}`);
 
     if (question.deferTraversal) {
       clickDone();
       clearInterval($timers.STRIKE_ID);
-      console.log('[✅] Questionnaire Submitted');
+      log('[✅] Questionnaire Submitted');
       // render notes recommendations for strike with chosen policy id
 
       const chosenPolicyId = shadowDOMSearch('yurt-core-questionnaire')?.[0]
@@ -1172,7 +1174,7 @@ export default async function rabotaem() {
     Object.keys($timers).forEach((timer) => {
       clearTimeout($timers[timer]);
       clearInterval($timers[timer]);
-      console.log(`[🧹] removed ${timer} = ${$timers[timer]}`);
+      log(`[🧹] removed ${timer} = ${$timers[timer]}`);
       $timers.timer = 0;
     });
   }
@@ -1192,7 +1194,7 @@ export default async function rabotaem() {
 
         // click reviews tab
         setTimeout(() => {
-          console.log("[i] Click 'My Reviews Tab'");
+          log("[i] Click 'My Reviews Tab'");
           click.element('mwc-tab', {
             label: '"My Reviews (0)"',
           });
@@ -1531,7 +1533,7 @@ export default async function rabotaem() {
         }, $config.FUNCTION_CALL_RETRY_MS);
       } catch (e) {
         if ($config.showLogs) {
-          console.log('[❌] :: UI.render() :: Could not append action panel.');
+          log('[❌] :: UI.render() :: Could not append action panel.');
         }
 
         if ($config.showErrors) {
@@ -1766,7 +1768,7 @@ export default async function rabotaem() {
           );
 
           if (!policiesNodeList) {
-            // console.log('[recursion] looking for 9008 tag');
+            // log('[recursion] looking for 9008 tag');
             // FIX
             setTimeout(
               () => action.video.steps.selectPolicy(policyId),
@@ -1780,7 +1782,7 @@ export default async function rabotaem() {
             (p) => p['policy']?.['id'] === policyId
           )?.[0];
 
-          // console.log('approvePolicyTag');
+          // log('approvePolicyTag');
           policyElement?.click();
         },
         selectLanguage(language) {
@@ -1798,7 +1800,7 @@ export default async function rabotaem() {
             return;
           }
           russian.click();
-          console.log('[Select Language] Clicked ', language);
+          log('[Select Language] Clicked ', language);
           return;
         },
         isRelatedToVE(related = 'no') {
@@ -1819,7 +1821,7 @@ export default async function rabotaem() {
           let link;
           link = shadowDOMSearch('.mdc-text-field__input')[0];
 
-          // console.log('text area');
+          // log('text area');
           link && link.select();
         },
       },
@@ -1957,8 +1959,8 @@ export default async function rabotaem() {
 
           reason = other;
           if (['arabic', 'indian'].includes(targetQueue)) {
-            console.log('routing for language');
-            console.log(targetQueue);
+            log('routing for language');
+            log(targetQueue);
             reason = lang;
           }
           // eslint-disable-next-line no-unused-expressions
@@ -2006,7 +2008,7 @@ export default async function rabotaem() {
           $config.FUNCTION_CALL_RETRY_MS
         );
 
-        console.log('[i] Questionnaire Answers:', answers);
+        log('[i] Questionnaire Answers:', answers);
 
         if ($timers.STRIKE_ID) {
           clearInterval($timers.STRIKE_ID);
@@ -2032,23 +2034,23 @@ export default async function rabotaem() {
             () => this.selectVEpolicy(commentPolicy);
             return;
           }
-          console.log('selectVEpolicy', commentPolicy);
+          log('selectVEpolicy', commentPolicy);
           VEpolicy.click();
         },
 
         selectActionType(actionType = 'generic_support') {
-          console.log('selectActionType', actionType);
+          log('selectActionType', actionType);
 
           $utils.click.element('mwc-radio', { value: actionType });
         },
 
         VEgroupType(veType = 've_group_type') {
-          console.log('VEgroupType', veType);
+          log('VEgroupType', veType);
           $utils.click.element('mwc-radio', { value: veType });
         },
 
         selectVEgroup(targetGroup) {
-          console.log('selectVEgroup', targetGroup);
+          log('selectVEgroup', targetGroup);
 
           const VEgroupsArr = Array.from(shadowDOMSearch('mwc-list-item'));
 
@@ -2063,27 +2065,27 @@ export default async function rabotaem() {
 
           function getVEGroup() {
             let group = VEgroupsArr?.filter((item) => {
-              // console.log(item.value);
-              // console.log(groupsMap[targetGroup]);
+              // log(item.value);
+              // log(groupsMap[targetGroup]);
               return item.value === __veGroups[targetGroup];
             })[0];
             return group;
           }
 
           let group = getVEGroup();
-          console.log('getVEGroup', group);
+          log('getVEGroup', group);
 
           group && group?.click();
         },
 
         selectRelevance(relevance = 'comment_text') {
-          console.log('selectRelevance', relevance);
+          log('selectRelevance', relevance);
 
           $utils.click.element('mwc-checkbox', { value: relevance });
         },
 
         selectStamp(stampType = 'the_whole_comment') {
-          console.log('selectRelevance', stampType);
+          log('selectRelevance', stampType);
 
           $utils.click.element('mwc-radio', { value: stampType });
         },
@@ -2158,7 +2160,7 @@ export default async function rabotaem() {
           break;
         // Submit Lang
         case 60 || '<':
-          console.log(`submit rus`);
+          log(`submit rus`);
           action.video.approveVideo('russian');
           break;
         // Submit agnostic
@@ -2184,13 +2186,13 @@ export default async function rabotaem() {
           try {
             $utils.clickSave();
           } catch (e) {
-            console.log('❌ Could not click Save.');
+            log('❌ Could not click Save.');
           }
 
           try {
             $utils.clickSubmit();
           } catch (e) {
-            console.log('❌ Could not click Submit.');
+            log('❌ Could not click Submit.');
           }
 
           break;
