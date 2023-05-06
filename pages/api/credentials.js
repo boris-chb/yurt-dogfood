@@ -35,6 +35,11 @@ export default async function handler(req, res) {
       'alekasnder',
       'mihaylovt',
       'violettarose',
+      'klimvitaly',
+      'barabanchuk',
+      'georgijs',
+      'panych',
+      'rozentale',
     ];
 
     const data = req.body;
