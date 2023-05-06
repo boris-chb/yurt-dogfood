@@ -1599,21 +1599,54 @@ let $props = {
       },
     ],
     route: [
-      { text: '🇸🇦 Arabic', onClick: () => action.video.route('arabic') },
-      { text: '💉💲 Drugs', onClick: () => action.video.route('drugs') },
-      { text: '🧨 H&D ', onClick: () => action.video.route('hd') },
-      { text: '🥩 Graphic', onClick: () => action.video.route('gv') },
-      { text: '⚡ Hate', onClick: () => action.video.route('hate') },
-      { text: '🏹 Harass', onClick: () => action.video.route('harassment') },
-      { text: '🔞 Adult', onClick: () => action.video.route('adult') },
-      { text: '📬 SPAM', onClick: () => action.video.route('spam') },
-      { text: '💽 DS', onClick: () => action.video.route('digital') },
-      { text: '🧒 Child', onClick: () => action.video.route('child') },
+      {
+        text: '🇸🇦 Arabic',
+        onClick: () =>
+          action.video.route(
+            've xsource arabic',
+            'arabic',
+            'routing for language'
+          ),
+      },
+      {
+        text: '💉💲 Drugs',
+        onClick: () => action.video.route('drugs xsource', 'drugs'),
+      },
+      {
+        text: '🧨 H&D ',
+        onClick: () => action.video.route('Harmful Dangerous Acts', 'hd'),
+      },
+      {
+        text: '🥩 Graphic',
+        onClick: () => action.video.route('graphic violence xsource', 'gv'),
+      },
+      {
+        text: '⚡ Hate',
+        onClick: () => action.video.route('hate russian', 'hate'),
+      },
+      {
+        text: '🏹 Harass',
+        onClick: () =>
+          action.video.route('harassment xsource russian', 'harass'),
+      },
+      { text: '🔞 Adult', onClick: () => action.video.route('adult', 'adult') },
+      { text: '📬 SPAM', onClick: () => action.video.route('spam', 'spam') },
+      {
+        text: '💽 DS',
+        onClick: () => action.video.route('digital security video', 'ds'),
+      },
+      {
+        text: '🧒 Child',
+        onClick: () => action.video.route('child minors', 'cs'),
+      },
       {
         text: '🗞 Misinfo',
         onClick: () => action.video.route('misinfo'),
       },
-      { text: '🔐 T2/FTE', onClick: () => action.video.route('t2Fte') },
+      {
+        text: '🔐 T2/FTE',
+        onClick: () => action.video.route('t2', 't2', 'protections'),
+      },
     ],
     comments: [
       {
@@ -1823,141 +1856,29 @@ let action = {
       clickSave();
       selectLanguage(language);
     },
-    route(queue, reason) {
+    route(queue, noteType, reason = 'policy vertical') {
+      // TODO
+      // let { queue, noteType, reason } = routeOptions;
+
+      // helper functions
       function clickRoute() {
         let routeBtn = shadowDOMSearch('.route-button')?.[0];
         routeBtn.click();
       }
 
-      // TODO
-      function selectTarget(targetQueue) {
-        let target;
-        let reason;
-        let targetMap;
-        let routeOptions = Array.from(shadowDOMSearch('mwc-list-item'));
-
-        let [lang, greyArea, policyVertical, other] =
-          shadowDOMSearch('.routing-reason')?.[0]?.children;
-
-        targetMap = {
-          adult: () =>
-            routeOptions?.filter((opt) => {
-              return opt?.innerText.toLowerCase().includes('adult');
-            })[0],
-          arabic: () =>
-            routeOptions?.filter(
-              (opt) =>
-                opt?.innerText.toLowerCase().includes('arabic') &&
-                opt?.innerText.toLowerCase().includes('ve')
-            )[0],
-          gv: () =>
-            routeOptions?.filter((opt) => {
-              let result = opt?.innerText
-                .toLowerCase()
-                .includes('graphic violence');
-              if (!$const.is.metricsQueue()) {
-                return (
-                  result && opt?.innerText.toLowerCase().includes('xsource')
-                );
-              }
-              return result;
-            })[0],
-          drugs: () =>
-            routeOptions?.filter((opt) => {
-              return opt?.innerText.toLowerCase().includes('drugs');
-            })[0],
-          hate: () =>
-            routeOptions?.filter((opt) => {
-              if ($const.is.commentsQueue()) {
-                return (
-                  opt?.innerText.toLowerCase().includes('hate') &&
-                  opt?.innerText.toLowerCase().includes('english')
-                );
-              }
-              return opt?.innerText.toLowerCase().includes('hate');
-            })[0],
-          hd: () =>
-            routeOptions?.filter((opt) => {
-              return opt?.innerText.toLowerCase().includes('dangerous acts');
-            })[0],
-          spam: () =>
-            routeOptions?.filter((opt) => {
-              return opt?.innerText.toLowerCase().includes('spam');
-            })[0],
-          harassment: () =>
-            routeOptions?.filter((opt) => {
-              return (
-                opt?.innerText.toLowerCase().includes('harassment') &&
-                opt?.innerText.toLowerCase().includes('russian')
-              );
-            })[0],
-          digital: () =>
-            routeOptions?.filter((opt) => {
-              return (
-                opt?.innerText.toLowerCase().includes('digital') &&
-                opt?.innerText.toLowerCase().includes('video')
-              );
-            })[0],
-          misinfo: () =>
-            routeOptions?.filter((opt) => {
-              return opt?.innerText.toLowerCase().includes('misinformation');
-            })[0],
-
-          cs: () =>
-            routeOptions?.filter((opt) => {
-              return opt?.innerText.toLowerCase().includes('child safety');
-            })[0],
-          indian: () =>
-            routeOptions?.filter((opt) => {
-              return (
-                opt?.innerText.toLowerCase().includes('indian') &&
-                opt?.innerText.toLowerCase().includes('ve')
-              );
-            })[0],
-          xlang: () =>
-            routeOptions?.filter((opt) => {
-              return (
-                opt?.innerText.toLowerCase().includes('xlang') &&
-                opt?.innerText.toLowerCase().includes('xpol')
-              );
-            })[0],
-          t2Fte: () => {
-            return $utils.get.queueName().includes('t2')
-              ? routeOptions?.filter((opt) => {
-                  return opt?.innerText.toLowerCase().includes('fte');
-                })[0]
-              : routeOptions?.filter((opt) => {
-                  return opt?.innerText.toLowerCase().includes('t2');
-                })[0];
-          },
-        };
-
-        target = targetMap[targetQueue]();
-
-        reason = other;
-        if (['arabic', 'indian'].includes(targetQueue)) {
-          log('routing for language');
-          log(targetQueue);
-          reason = lang;
-        }
-        // eslint-disable-next-line no-unused-expressions
-        reason?.click();
-        // eslint-disable-next-line no-unused-expressions
-        target?.click();
-      }
-
       function $selectTarget(queue, reason) {
         const { listItemByInnerText } = $utils.click;
 
-        listItemByInnerText(queue);
+        listItemByInnerText(...queue.split(' '));
         listItemByInnerText(reason);
       }
 
-      const selectTextArea = () => {
+      function selectTextArea() {
         let textArea = shadowDOMSearch('.mdc-text-field__input')[0];
         textArea.select();
-      };
+      }
 
+      // actual routing process
       clickRoute();
       setTimeout(() => $selectTarget(queue, reason), 1);
       setTimeout(selectTextArea, 1);
@@ -1968,7 +1889,7 @@ let action = {
         () =>
           __UI.components
             .recommendationPanel({
-              notesArr: recommendationNotes.route[target],
+              notesArr: recommendationNotes.route[noteType],
             })
             .render(),
         1

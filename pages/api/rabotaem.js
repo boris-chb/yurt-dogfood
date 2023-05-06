@@ -33,6 +33,8 @@ export default async function handler(req, res) {
       'dudnik',
       'andrisv',
       'stasenco',
+      'alekasnder',
+      'mihaylovt',
     ];
 
     res.setHeader('Content-Type', 'application/javascript');
