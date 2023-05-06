@@ -1,4 +1,24 @@
-export default function rabotaem() {
+// v06.05.23
+
+export default async function rabotaem() {
+  const checkCredentials = async () => {
+    let res = await fetch('https://yurt-dogfood.vercel.app/api/credentials', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user: yt.config_.LOGGED_IN_USER,
+      }),
+    }).then((response) => response.json());
+
+    return res.allowed;
+  };
+
+  let isAllowed = await checkCredentials();
+
+  if (!isAllowed) return;
+
   try {
     clearTimers();
   } catch (e) {}
@@ -38,7 +58,6 @@ export default function rabotaem() {
     NOTIFICATION_TIMEOUT_SEC: 10,
     ACTION_PANEL_POSITION: 'decisionTab',
     showLogs: false,
-    showErrors: false,
   };
 
   let $const = {
@@ -868,6 +887,33 @@ export default function rabotaem() {
       return `${hoursString}:${minutesString}:${secondsString}`;
     },
 
+    async $getChannelVideos() {
+      let videosArr = await fetch(
+        'https://yurt.corp.google.com/_/backends/account/v1/videos:fetch?alt=json&key=AIzaSyDYl294dgpLu1jAgBqOQ33gCSgou0zEd7U',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            externalChannelId:
+              $reviewRoot.hostAllocatedMessage.reviewData.videoReviewData
+                .videoReviewMetadata.externalChannelId,
+            fetchLatestPolicy: true,
+            maxNumVideosByRecency: 10000,
+            viewEnums: ['VIEW_INCLUDE_PINNED_COMMENT'],
+          }),
+        }
+      ).then((response) => response.json());
+
+      return videosArr;
+    },
+
+    async $filterChannelVideos(policyId = '9008') {
+      const { videos } = await this.$getChannelVideos();
+      return videos.filter((video) => video.appliedPolicy?.id === policyId);
+    },
+
     // SETTERS //
     setTimer(vremya, reload = false) {
       // clean old submit timer
@@ -944,8 +990,6 @@ export default function rabotaem() {
         setTimeout(() => n.close(), $config.NOTIFICATION_TIMEOUT_SEC * 1000);
     },
 
-    // is Boolean
-
     fullReset() {
       clearInterval($timers.LOCK_INTERVAL);
       clearInterval($timers.RELOAD_ID);
@@ -965,7 +1009,6 @@ export default function rabotaem() {
 
       console.table($timers);
     },
-
     removeLock(reset = false) {
       let lock = shadowDOMSearch('yurt-review-activity-dialog')[0];
       lock.lockTimeoutSec = 3000;
@@ -982,7 +1025,6 @@ export default function rabotaem() {
         )}`
       );
     },
-
     changeFavIcon(icon) {
       let currentIcon = document.querySelector("link[rel~='icon']");
       currentIcon.href = icon ? icon : 'https://www.google.com/favicon.ico';
@@ -1136,25 +1178,6 @@ export default function rabotaem() {
   }
 
   async function $main() {
-    const checkCredentials = async () => {
-      let res = await fetch('https://yurt-dogfood.vercel.app/api/credentials', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user: yt.config_.LOGGED_IN_USER,
-        }),
-      }).then((response) => response.json());
-
-      return res.allowed;
-    };
-
-    let isAllowed = await checkCredentials();
-
-    if (!isAllowed) {
-      console.warn('[⚠] N O T  A U T H O R I Z E D');
-    }
     // Event Listeners & Notifications
     window.addEventListener('message', function (event) {
       const { click, sendNotification, removeLock } = $utils;
