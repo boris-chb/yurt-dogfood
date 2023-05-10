@@ -1,23 +1,6 @@
 // v06.05.23
 
 export default async function rabotaem() {
-  const checkCredentials = async () => {
-    let { allowed } = await fetch(
-      'https://yurt-dogfood.vercel.app/api/credentials',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user: yt.config_.LOGGED_IN_USER,
-        }),
-      }
-    ).then((response) => response.json());
-
-    return allowed;
-  };
-
   let isAllowed = await checkCredentials();
 
   if (!isAllowed) return;
@@ -51,7 +34,7 @@ export default async function rabotaem() {
   };
 
   let $config = {
-    SU: true,
+    SU: false,
     ADD_NOTE: false,
     USE_KEYPRESS: false,
     COMMENTS_TIMER_MIN: 1,
@@ -253,30 +236,6 @@ export default async function rabotaem() {
     }
     shadowSearch(document.querySelector('yurt-root-app').shadowRoot, query);
     return myElement;
-  }
-
-  function expandNotesArea() {
-    const noteInputBox =
-      shadowDOMSearch('.notes-input')?.[0] ||
-      shadowDOMSearch(
-        'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
-      )?.[0];
-
-    // increase size of note input box
-    noteInputBox.rows = 10;
-  }
-
-  function expandAddReview() {
-    const policiesWrapper = shadowDOMSearch('.policies-wrapper')?.[0];
-    const sidebarBtns = shadowDOMSearch('.action-buttons')?.[0];
-
-    try {
-      sidebarBtns.style.paddingBottom = '100px';
-      policiesWrapper.style.maxHeight = '550px';
-      policiesWrapper.style.height = '550px';
-    } catch (e) {
-      // console.error('Could not expand add review', e);
-    }
   }
 
   function strToNode(str) {
@@ -991,7 +950,17 @@ export default async function rabotaem() {
       close &&
         setTimeout(() => n.close(), $config.NOTIFICATION_TIMEOUT_SEC * 1000);
     },
+    expandNotesArea(rows = 12, actionType = 'route') {
+      let notesTextArea;
+      notesTextArea = actionType = 'route'
+        ? shadowDOMSearch('.mdc-text-field__input')?.[0]
+        : shadowDOMSearch(
+            'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
+          )?.[0];
 
+      // increase size of note input box
+      notesTextArea.rows = rows;
+    },
     fullReset() {
       clearInterval($timers.LOCK_INTERVAL);
       clearInterval($timers.RELOAD_ID);
@@ -1032,12 +1001,6 @@ export default async function rabotaem() {
       currentIcon.href = icon ? icon : 'https://www.google.com/favicon.ico';
     },
   };
-
-  function dVideo() {
-    let ytpPlayer = shadowDOMSearch('ytp-player')?.[0];
-    return JSON.parse(ytpPlayer.playerVars.player_response).streamingData
-      .formats[0].url;
-  }
 
   function setFrequentlyUsedPolicies() {
     try {
@@ -1136,6 +1099,7 @@ export default async function rabotaem() {
       const chosenPolicyId = shadowDOMSearch('yurt-core-questionnaire')?.[0]
         ?.policy?.id;
 
+      setTimeout(() => $utils.expandNotesArea(), 500);
       // SHOW RECOMMENDATIONS
       __UI.components
         .recommendationPanel({
@@ -1837,10 +1801,6 @@ export default async function rabotaem() {
         addReview();
         selectPolicy(policyId);
         isRelatedToVE(relatedToVE);
-        // SHOW RECOMMENDATIONS
-        __UI.components
-          .recommendationPanel({ notesArr: recommendationNotes.approve })
-          .render();
         // clickNext();
         clickDone();
         clickSave();
@@ -1977,6 +1937,7 @@ export default async function rabotaem() {
         clickRoute();
         setTimeout(() => selectTarget(target), 1);
         setTimeout(selectTextArea, 1);
+        setTimeout(() => $utils.expandNotesArea(), 1);
 
         // show recommendations for routing to target queue
         setTimeout(

@@ -26,3 +26,8 @@ async function $filterChannelVideos(policyId = '9008') {
   const { videos } = await $getChannelVideos();
   return videos.filter((video) => video.appliedPolicy?.id === policyId);
 }
+
+async function filterVideosByKeyword(keyword) {
+  const { videos } = await $getChannelVideos();
+  return videos.filter(video => video.videoTitle.)
+}

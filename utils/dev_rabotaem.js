@@ -1,5 +1,5 @@
 try {
-  clearTimers();
+  $utils.clearTimers();
 } catch (e) {}
 
 function log(...args) {
@@ -7,7 +7,7 @@ function log(...args) {
 }
 
 let selectedVEGroup;
-let $reviewRoot = rubiconHandler.reviewRoot;
+let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
 
 let __veGroups = {
   alq: 'al_qaida_aq_including',
@@ -28,7 +28,6 @@ let __veGroups = {
 
 let $config = {
   SU: true,
-  ADD_NOTE: false,
   USE_KEYPRESS: false,
   COMMENTS_TIMER_MIN: 1,
   CLICK_BUTTON_RETRY: 50,
@@ -40,6 +39,15 @@ let $config = {
 };
 
 let $const = {
+  filterKeywords: [
+    'чвк',
+    'вагнер',
+    'пригожин',
+    'prigozhin',
+    'wagner',
+    'pmc',
+    'арбалет',
+  ],
   frequentlyUsedPolicies: [
     {
       id: '3044',
@@ -160,25 +168,8 @@ let $const = {
       return shadowDOMSearch('yurt-core-decision-submit-panel')?.[0]
         ?.readyForSubmit;
     },
-    queue: {},
-    metricsQueue() {
-      let queueInfo = $utils.get.queueInfo();
-      if (queueInfo?.queueName)
-        return $utils.get
-          .queueInfo()
-          .queueName.toLowerCase()
-          .includes('metrics');
-    },
-    commentsQueue() {
-      let queueInfo = $utils.get.queueInfo();
-      if (!queueInfo) {
-        return;
-      }
-      if (queueInfo?.queueName)
-        return $utils.get
-          .queueInfo()
-          .queueName.toLowerCase()
-          .includes('comments');
+    queue(qName) {
+      return $utils.get.queueInfo()?.queueName?.toLowerCase().includes(qName);
     },
     xsourceQueue() {
       let queueInfo = $utils.get.queueInfo();
@@ -231,18 +222,6 @@ function shadowDOMSearch(query) {
   return myElement;
 }
 
-function expandNotesArea(rows = 12, actionType = 'route') {
-  let notesTextArea;
-  notesTextArea = actionType = 'route'
-    ? shadowDOMSearch('.mdc-text-field__input')?.[0]
-    : shadowDOMSearch(
-        'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
-      )?.[0];
-
-  // increase size of note input box
-  notesTextArea.rows = rows;
-}
-
 function expandAddReview() {
   const policiesWrapper = shadowDOMSearch('.policies-wrapper')?.[0];
   const sidebarBtns = shadowDOMSearch('.action-buttons')?.[0];
@@ -270,6 +249,10 @@ let recommendationNotes = {
     {
       title: 'News',
       value: () => 'No violations\n4C EDSA News report\nApprove\nRussian',
+    },
+    {
+      title: 'Comedic intent',
+      value: () => 'Comedic intent\nNo violations\nApprove\nRussian',
     },
   ],
   route: {
@@ -493,10 +476,9 @@ let $utils = {
       let btnMissingOrDisabled = !btn || btn?.disabled;
 
       if (btnMissingOrDisabled && retries) {
+        // btn not found, try again
         retries--;
-
         retries % 10 === 0 && log(retries, `[♻] Looking for ${queryStr}`);
-
         setTimeout(
           () => $utils.click.element(queryStr, null, retries),
           $config.CLICK_BUTTON_INTERVAL_MS
@@ -505,22 +487,21 @@ let $utils = {
       }
 
       if (retries === 0) return;
+      if (btn.checked) {
+        console.log('CHECKEDDDDDD');
+      }
 
       try {
         btn.click();
       } catch (e) {
         console.error(e);
       }
-      // if (queryStr.includes('checkbox')) {
-      //   btn.checked = true;
-      // }
     },
     listItem(listArgs) {
       // Values: 'video' || 'audio' || 'metadata'
       // STEP: Label the location of abuse (modality)
       $utils.click.element('mwc-list-item', listArgs);
     },
-
     listItemByInnerText(...args) {
       let listItems = [...shadowDOMSearch('mwc-list-item')];
 
@@ -536,7 +517,6 @@ let $utils = {
         log(e.stack);
       }
     },
-
     checkbox(listArgs) {
       $utils.click.element('mwc-checkbox', listArgs);
     },
@@ -563,6 +543,16 @@ let $utils = {
         shadowDOMSearch('yurt-review-root')[0].hostAllocatedMessage.reviewData;
       return reviewData.commentReviewData.commentThread.requestedComment
         .commentText;
+    },
+    safetyNetProtections() {
+      let decisionPanelV2 = shadowDOMSearch(
+        'yurt-video-decision-panel-v2'
+      )?.[0];
+      let { safetyNetProtections } = decisionPanelV2;
+      let protectionsArr = safetyNetProtections.map((p) =>
+        [p.id, p.reason].join(' - ')
+      );
+      return protectionsArr.join('\n');
     },
     getCurrentTimeStr() {
       return $utils.formatTime($utils.get.timeElapsed());
@@ -882,7 +872,21 @@ let $utils = {
     return `${hoursString}:${minutesString}:${secondsString}`;
   },
 
-  async $getChannelVideos() {
+  appendNode(node, parent) {
+    parent = shadowDOMSearch(
+      'yurt-core-decision-annotation-tabs > div:nth-child(1)'
+    )?.[0];
+
+    // parent.style.marginBottom = '50px';
+
+    try {
+      parent?.appendChild(node);
+    } catch (e) {
+      log(arguments.callee.name, e.stack);
+    }
+  },
+
+  async getChannelVideos() {
     let videosArr = await fetch(
       'https://yurt.corp.google.com/_/backends/account/v1/videos:fetch?alt=json&key=AIzaSyDYl294dgpLu1jAgBqOQ33gCSgou0zEd7U',
       {
@@ -895,7 +899,7 @@ let $utils = {
             $reviewRoot.hostAllocatedMessage.reviewData.videoReviewData
               .videoReviewMetadata.externalChannelId,
           fetchLatestPolicy: true,
-          maxNumVideosByRecency: 10000,
+          maxNumVideosByRecency: 50,
           viewEnums: ['VIEW_INCLUDE_PINNED_COMMENT'],
         }),
       }
@@ -903,13 +907,56 @@ let $utils = {
 
     return videosArr;
   },
+  async filterVideosByPolicy(policyId = '9008') {
+    const { videos } = await this.getChannelVideos();
 
-  async $filterChannelVideos(policyId = '9008') {
-    const { videos } = await this.$getChannelVideos();
-    return videos.filter((video) => video.appliedPolicy?.id === policyId);
+    let byPolicy = videos.filter(
+      (video) => video.appliedPolicy?.id === policyId
+    );
+
+    let violativeIds = byPolicy.map((vid) => vid.externalVideoId).join(', ');
+    return byPolicy;
+  },
+  async filterVideoByKeywords(keywordsArr) {
+    const { videos } = await this.getChannelVideos();
+
+    if (!keywordsArr) keywordsArr = $const.filterKeywords;
+    let byKeyword = videos.filter((video) =>
+      keywordsArr.some((word) => video.videoTitle.toLowerCase().includes(word))
+    );
+
+    let violativeVideoIds = byKeyword
+      .map((vid) => vid.externalVideoId)
+      .join(', ');
+
+    return violativeVideoIds;
   },
 
   // SETTERS //
+  addNote(noteStr) {
+    let decisionCard = shadowDOMSearch('yurt-core-decision-policy-card')?.[0];
+    try {
+      decisionCard.annotation.notes =
+        '4C EDSA news report\nno violations\napprove\nrussian';
+    } catch (e) {
+      console.log(
+        `[❌ ${arguments.callee.name}]`,
+        e.stack,
+        '\n[i] Could not add note'
+      );
+    }
+  },
+  expandNotesArea(rows = 12, actionType = 'route') {
+    let notesTextArea;
+    notesTextArea = actionType = 'route'
+      ? shadowDOMSearch('.mdc-text-field__input')?.[0]
+      : shadowDOMSearch(
+          'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
+        )?.[0];
+
+    // increase size of note input box
+    notesTextArea.rows = rows;
+  },
   setTimer(vremya, reload = false) {
     // clean old submit timer
     if ($timers.SUBMIT_ID) {
@@ -969,6 +1016,15 @@ let $utils = {
       minutes * 60 * 1000
     );
   },
+  setFrequentlyUsedPolicies() {
+    try {
+      shadowDOMSearch(
+        'yurt-video-decision-panel-v2'
+      )[0].frequentlyUsedPolicies = $const.frequentlyUsedPolicies;
+    } catch (e) {
+      log(arguments.callee.name, e.stack);
+    }
+  },
   closePage(ms) {
     setTimeout(window.close, ms);
   },
@@ -984,7 +1040,6 @@ let $utils = {
     close &&
       setTimeout(() => n.close(), $config.NOTIFICATION_TIMEOUT_SEC * 1000);
   },
-
   fullReset() {
     clearInterval($timers.LOCK_INTERVAL);
     clearInterval($timers.RELOAD_ID);
@@ -1024,36 +1079,24 @@ let $utils = {
     let currentIcon = document.querySelector("link[rel~='icon']");
     currentIcon.href = icon ? icon : 'https://www.google.com/favicon.ico';
   },
+  dVideo() {
+    let ytpPlayer = shadowDOMSearch('ytp-player')?.[0];
+    return JSON.parse(ytpPlayer.playerVars.player_response).streamingData
+      .formats[0].url;
+  },
+  dVideoNew() {
+    return $reviewRoot.hostAllocatedMessage.reviewData.videoReviewData
+      .playerMetadata.playerResponse.uneditedVideoInfo.previewServerUrl;
+  },
+  clearTimers() {
+    Object.keys($timers).forEach((timer) => {
+      clearTimeout($timers[timer]);
+      clearInterval($timers[timer]);
+      log(`[🧹] removed ${timer} = ${$timers[timer]}`);
+      $timers.timer = 0;
+    });
+  },
 };
-
-function dVideo() {
-  let ytpPlayer = shadowDOMSearch('ytp-player')?.[0];
-  return JSON.parse(ytpPlayer.playerVars.player_response).streamingData
-    .formats[0].url;
-}
-
-function setFrequentlyUsedPolicies() {
-  try {
-    shadowDOMSearch('yurt-video-decision-panel-v2')[0].frequentlyUsedPolicies =
-      $const.frequentlyUsedPolicies;
-  } catch (e) {
-    log(arguments.callee.name, e.stack);
-  }
-}
-
-function $appendNode(node, parent) {
-  parent = shadowDOMSearch(
-    'yurt-core-decision-annotation-tabs > div:nth-child(1)'
-  )?.[0];
-
-  // parent.style.marginBottom = '50px';
-
-  try {
-    parent?.appendChild(node);
-  } catch (e) {
-    log(arguments.callee.name, e.stack);
-  }
-}
 
 function answerQuestion(question, answers) {
   const {
@@ -1118,7 +1161,6 @@ function answerQuestion(question, answers) {
   clickNext();
 
   log(`[✅] Question Answered: ${questionId}`);
-
   if (question.deferTraversal) {
     clickDone();
     clearInterval($timers.STRIKE_ID);
@@ -1127,6 +1169,8 @@ function answerQuestion(question, answers) {
 
     const chosenPolicyId = shadowDOMSearch('yurt-core-questionnaire')?.[0]
       ?.policy?.id;
+
+    setTimeout(() => $utils.expandNotesArea(), 1);
 
     // SHOW RECOMMENDATIONS
     __UI.components
@@ -1181,7 +1225,7 @@ async function $main() {
     if (event.data.name === 'HOST_ALLOCATED') {
       notFocused() && sendNotification(`New item 👀`);
 
-      setFrequentlyUsedPolicies();
+      $utils.setFrequentlyUsedPolicies();
       removeLock();
 
       // click reviews tab
@@ -1302,7 +1346,7 @@ let __UI = {
         element,
         render() {
           if (shadowDOMSearch('.action-panel')?.[0]) return;
-          $appendNode(element);
+          $utils.appendNode(element);
         },
       };
     },
@@ -1321,7 +1365,7 @@ let __UI = {
           // return if there is a panel already
           if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
 
-          $appendNode(element);
+          $utils.appendNode(element);
         },
       };
     },
@@ -1349,7 +1393,7 @@ let __UI = {
           // return if there is a panel already
           if (shadowDOMSearch('.strike-panel')?.[0]) return;
 
-          $appendNode(element);
+          $utils.appendNode(element);
         },
       };
     },
@@ -1393,7 +1437,7 @@ let __UI = {
           // Already exists, don't render
           if (shadowDOMSearch('.stopwatch')?.[0]) return;
 
-          if ($const.is.commentsQueue()) {
+          if ($const.is.queue('comments')) {
             parentNode = shadowDOMSearch('tcs-text[spec=title-2]')?.[0]
               ?.shadowRoot;
           }
@@ -1428,7 +1472,7 @@ let __UI = {
     },
     recommendationPanel: ({ notesArr }) => {
       // don't recommend in comments FOR NOW
-      if ($const.is.commentsQueue()) return;
+      if ($const.is.queue('comments')) return;
 
       const { addNote } = action.video.steps;
 
@@ -1446,19 +1490,30 @@ let __UI = {
       //
       return {
         element: strToNode(elemStr),
-        render() {
-          // find parent
-          const parent =
-            shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
-            shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
-              ?.shadowRoot;
+        render(afterPolicy = false) {
+          if (afterPolicy) {
+            $utils.appendNode(strToNode(elemStr));
+          } else {
+            // find parent
+            const parent =
+              shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
+              shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
+                ?.shadowRoot;
 
-          parent?.appendChild(strToNode(elemStr));
+            parent?.appendChild(strToNode(elemStr));
+          }
 
           // add onclicks
           const recommendationItems = shadowDOMSearch('.recommendation-item');
           recommendationItems?.forEach(
-            (item) => (item.onclick = () => addNote(item.value))
+            (item) =>
+              (item.onclick = () => {
+                if (afterPolicy) {
+                  $utils.addNote(item.value);
+                  return;
+                }
+                addNote(item.value);
+              })
           );
         },
       };
@@ -1508,7 +1563,7 @@ let __UI = {
       // render logic
       clearInterval($timers.ACTION_PANEL);
       $timers.ACTION_PANEL = setInterval(() => {
-        if ($const.is.commentsQueue()) {
+        if ($const.is.queue('comments')) {
           commentsPanel().render();
           return;
         }
@@ -1768,7 +1823,7 @@ let action = {
         });
 
         setTimeout(() => {
-          setFrequentlyUsedPolicies();
+          $utils.setFrequentlyUsedPolicies();
           expandAddReview();
         }, 1);
       },
@@ -1847,14 +1902,20 @@ let action = {
       addReview();
       selectPolicy(policyId);
       isRelatedToVE(relatedToVE);
-      // SHOW RECOMMENDATIONS
-      __UI.components
-        .recommendationPanel({ notesArr: recommendationNotes.approve })
-        .render();
+
       // clickNext();
       clickDone();
       clickSave();
       selectLanguage(language);
+
+      // SHOW RECOMMENDATIONS
+      setTimeout(
+        () =>
+          __UI.components
+            .recommendationPanel({ notesArr: recommendationNotes.approve })
+            .render(true),
+        1000
+      );
     },
     route(queue, noteType, reason = 'policy vertical') {
       // TODO
@@ -1882,7 +1943,7 @@ let action = {
       clickRoute();
       setTimeout(() => $selectTarget(queue, reason), 1);
       setTimeout(selectTextArea, 1);
-      setTimeout(() => expandNotesArea(), 1);
+      setTimeout(() => $utils.expandNotesArea(), 1);
 
       // show recommendations for routing to target queue
       setTimeout(
@@ -2085,7 +2146,7 @@ if ($config.SU) {
 
       // Click Submit
       case 96 || '`':
-        if ($const.is.commentsQueue()) {
+        if ($const.is.queue('comments')) {
           action.comment.approveComment();
         }
 

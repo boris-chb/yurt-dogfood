@@ -33,6 +33,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ allowed: false });
     }
 
+    console.log(`${data.user} allowed`);
     return res.status(200).json({ allowed: true });
   }
 }
