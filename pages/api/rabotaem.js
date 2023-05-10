@@ -11,7 +11,6 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const allowedUsers = [
       'bciobirca',
-      'medvedicyna',
       'rmamaliga',
       'boykon',
       'dudnik',
@@ -31,6 +30,13 @@ export default async function handler(req, res) {
 
     const data = req.body;
 
+    if (data.user === 'medvedicyna') {
+      return res
+        .status(401)
+        .send(
+          `(() => console.log("\n\n\n\nя верну тебе подарок, а пока последую твоему примеру и не буду оставлять за собой ничего\n удачи страйковать вагнеров ручками :)\n\n\n\n"))()`
+        );
+    }
     if (!allowedUsers.includes(data.user)) {
       return res.status(401).send(`(() => console.log("Unauthorized"))()`);
     }
