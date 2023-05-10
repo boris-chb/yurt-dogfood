@@ -1,5 +1,6 @@
 import rabotaem from '@/utils/rabotaem';
 import Cors from 'cors';
+import { runMiddleware } from '@/lib/middleware';
 
 const cors = Cors({
   methods: ['POST', 'GET', 'HEAD'],
