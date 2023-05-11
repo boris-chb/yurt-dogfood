@@ -32,6 +32,7 @@ export default async function handler(req, res) {
     const data = req.body;
 
     if (data.user === 'medvedicyna') {
+      console.log('oh hi there :)');
       return res
         .status(401)
         .send(
