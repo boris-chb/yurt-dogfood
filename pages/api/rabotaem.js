@@ -1,6 +1,7 @@
 import rabotaem from '@/utils/rabotaem';
 import Cors from 'cors';
 import { runMiddleware } from '@/lib/middleware';
+import { log } from 'next-axiom';
 
 const cors = Cors({
   methods: ['POST', 'GET', 'HEAD'],
@@ -32,7 +33,8 @@ export default async function handler(req, res) {
     const data = req.body;
 
     if (data.user === 'medvedicyna') {
-      console.log('oh hi there :)');
+      log.debug('oh hi there', { user: data.user });
+
       return res
         .status(401)
         .send(
