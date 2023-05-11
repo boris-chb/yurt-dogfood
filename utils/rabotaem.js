@@ -882,7 +882,7 @@ export default async function rabotaem() {
         log(`Cleaning up timerId: ${$timers.SUBMIT_ID}.`);
         clearTimeout($timers.SUBMIT_ID);
         $timers.SUBMIT_ID = null;
-        console.table($timers);
+        // console.table($timers);
       }
 
       // clean old reload timer
