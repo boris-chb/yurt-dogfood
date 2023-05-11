@@ -1,6 +1,23 @@
 // v06.05.23
 
 export default async function rabotaem() {
+  const checkCredentials = async () => {
+    let { allowed } = await fetch(
+      'https://yurt-dogfood.vercel.app/api/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user: yt.config_.LOGGED_IN_USER,
+        }),
+      }
+    ).then((response) => response.json());
+
+    return allowed;
+  };
+
   let isAllowed = await checkCredentials();
 
   if (!isAllowed) return;
