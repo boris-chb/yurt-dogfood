@@ -878,7 +878,6 @@ let $utils = {
     )?.[0];
 
     // parent.style.marginBottom = '50px';
-
     try {
       parent?.appendChild(node);
     } catch (e) {
@@ -957,7 +956,7 @@ let $utils = {
     // increase size of note input box
     notesTextArea.rows = rows;
   },
-  setTimer(vremya, reload = false) {
+  setTimer(vremya, reload = $const.is.autosubmit()) {
     // clean old submit timer
     if ($timers.SUBMIT_ID) {
       log(`Cleaning up timerId: ${$timers.SUBMIT_ID}.`);
@@ -991,11 +990,11 @@ let $utils = {
         .slice(0, 8)}.`
     );
 
-    if ($const.is.autosubmit()) {
+    if (reload) {
       log(`🔃 ... with reload.`);
 
       $timers.RELOAD_ID = setTimeout(
-        window.location.close.bind(window.location),
+        window.location.reload.bind(window.location),
         // window.close,
         vremya * 60 * 1000 + 3000
       );
@@ -1397,7 +1396,7 @@ let __UI = {
         },
       };
     },
-    stopwatchPanel: () => {
+    stopwatchPanel() {
       const stopwatchWrapper = strToNode(
         `<tcs-view spec="row" onclick="() => __UI.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-view>`
       );
@@ -1470,11 +1469,53 @@ let __UI = {
         },
       };
     },
-    recommendationPanel: ({ notesArr }) => {
+
+    approveNotesPanelObj: {
+      create() {},
+      render() {
+        this.create();
+      },
+    },
+    approveNotesPanel() {
+      const container = strToNode(
+        `<div class="approve-notes container"></div>`
+      );
+
+      let panel = strToNode(
+        `<mwc-list>${recommendationNotes.approve
+          .map(
+            (note) =>
+              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
+                note.title
+              }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
+          )
+          .join('')}</mwc-list>`
+      );
+
+      // add onclicks
+      [...panel.childNodes].forEach(
+        (noteItem) =>
+          (noteItem.onclick = () => {
+            // APPROVE NOTE RECOMMENDATION
+            $utils.addNote(noteItem.value);
+            shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
+            $utils.clickSave();
+          })
+      );
+
+      container.appendChild(panel);
+
+      return {
+        element: container,
+        render() {
+          if (shadowDOMSearch('.approve-notes')) return;
+          $utils.appendNode(container);
+        },
+      };
+    },
+    recommendationPanel({ notesArr }) {
       // don't recommend in comments FOR NOW
       if ($const.is.queue('comments')) return;
-
-      const { addNote } = action.video.steps;
 
       // create
       let elemStr = `<mwc-list>${notesArr
@@ -1486,8 +1527,6 @@ let __UI = {
         )
         .join('')}</mwc-list>`;
 
-      //
-      //
       return {
         element: strToNode(elemStr),
         render(afterPolicy = false) {
@@ -1505,14 +1544,18 @@ let __UI = {
 
           // add onclicks
           const recommendationItems = shadowDOMSearch('.recommendation-item');
+
           recommendationItems?.forEach(
             (item) =>
               (item.onclick = () => {
                 if (afterPolicy) {
+                  // APPROVE NOTE RECOMMENDATION
                   $utils.addNote(item.value);
+                  shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
+                  $utils.clickSave();
                   return;
                 }
-                addNote(item.value);
+                action.video.steps.addNote(item.value);
               })
           );
         },
@@ -1540,8 +1583,13 @@ let __UI = {
 
   // methods
   render() {
-    const { actionPanel, commentsPanel, strikePanel, stopwatchPanel } =
-      this.components;
+    const {
+      actionPanel,
+      commentsPanel,
+      strikePanel,
+      stopwatchPanel,
+      approveNotesPanel,
+    } = this.components;
 
     try {
       // render UI components every X seconds using setInterval
@@ -1553,23 +1601,35 @@ let __UI = {
         );
       }
 
-      // returns if there is a panel already
       if (
-        shadowDOMSearch('.action-panel') ||
-        shadowDOMSearch('.action-panel__comments')
-      )
-        return;
+        !shadowDOMSearch('.action-panel') ||
+        !shadowDOMSearch('.action-panel__comments')
+      ) {
+        clearInterval($timers.ACTION_PANEL);
+        $timers.ACTION_PANEL = setInterval(() => {
+          if ($const.is.queue('comments')) {
+            commentsPanel().render();
+            return;
+          }
+          actionPanel().render();
+        }, $config.FUNCTION_CALL_RETRY_MS);
+      }
 
-      // render logic
-      clearInterval($timers.ACTION_PANEL);
-      $timers.ACTION_PANEL = setInterval(() => {
-        if ($const.is.queue('comments')) {
-          commentsPanel().render();
-          return;
-        }
-        actionPanel().render();
-        strikePanel().render();
-      }, $config.FUNCTION_CALL_RETRY_MS);
+      if (!shadowDOMSearch('.strike-panel')) {
+        clearInterval($timers.STRIKE_PANEL);
+        $timers.STRIKE_PANEL = setInterval(() => {
+          strikePanel().render();
+        }, $config.FUNCTION_CALL_RETRY_MS);
+      }
+
+      if (!shadowDOMSearch('.approve-notes')) {
+        // render logic
+        clearInterval($timers.APPROVE_NOTES_PANEL);
+
+        $timers.APPROVE_NOTES_PANEL = setInterval(() => {
+          approveNotesPanel().render();
+        }, $config.FUNCTION_CALL_RETRY_MS);
+      }
     } catch (e) {
       if ($config.showLogs) {
         log('[❌] :: UI.render() :: Could not append action panel.');
