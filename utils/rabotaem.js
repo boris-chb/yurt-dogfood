@@ -602,6 +602,14 @@ let $utils = {
     queueLanguage() {
       return $utils.get.queueName()()?.split('-')?.[3]?.trim()?.toLowerCase();
     },
+    safetyNetProtections() {
+      let safetyNetDialog = shadowDOMSearch(
+        'yurt-core-safety-nets-dialog'
+      )?.[0];
+      return safetyNetDialog?.safetyNetProtections
+        ?.map((item) => `${item?.id} - ${item?.reason}`)
+        .join('\n');
+    },
     seekVideo(timestampStr) {
       let videoRoot = shadowDOMSearch('yurt-video-root')[0];
       let timeArr = timestampStr.split(':');

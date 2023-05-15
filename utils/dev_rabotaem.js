@@ -31,7 +31,7 @@ let $config = {
   USE_KEYPRESS: false,
   COMMENTS_TIMER_MIN: 1,
   CLICK_BUTTON_RETRY: 50,
-  CLICK_BUTTON_INTERVAL_MS: 50,
+  CLICK_BUTTON_INTERVAL_MS: 1,
   FUNCTION_CALL_RETRY_MS: 100,
   NOTIFICATION_TIMEOUT_SEC: 10,
   ACTION_PANEL_POSITION: 'decisionTab',
@@ -254,6 +254,10 @@ let recommendationNotes = {
       title: 'Comedic intent',
       value: () => 'Comedic intent\nNo violations\nApprove\nRussian',
     },
+    {
+      title: 'Gaming',
+      value: () => 'Gaming content\nNo violations\nApprove\nRussian',
+    },
   ],
   route: {
     arabic: [
@@ -377,14 +381,19 @@ let recommendationNotes = {
   strike: {
     3065: [
       {
+        title: '[3065] Depictive >50%',
+        value: () =>
+          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism\n3065 Strike\nRussian`,
+      },
+      {
         title: '[3065] Depictive+Music',
         value: () =>
-          `${selectedVEGroup} depictive content with upbeat music\n3065 Strike\nRussian`,
+          `${selectedVEGroup} depictive content with upbeat music without EDSA or criticism\n3065 Strike\nRussian`,
       },
       {
         title: '[3065] Depictive+Music @',
         value: () =>
-          `${selectedVEGroup} depictive content with upbeat music @${$utils.get.videoTimestamp()}\n3065 Strike\nRussian`,
+          `${selectedVEGroup} depictive content with upbeat music @${$utils.get.videoTimestamp()} without EDSA or criticism\n3065 Strike\nRussian`,
       },
       {
         title: '[3065] Song/Nasheed',
@@ -545,14 +554,17 @@ let $utils = {
         .commentText;
     },
     safetyNetProtections() {
-      let decisionPanelV2 = shadowDOMSearch(
-        'yurt-video-decision-panel-v2'
+      let safetyNetDialog = shadowDOMSearch(
+        'yurt-core-safety-nets-dialog'
       )?.[0];
-      let { safetyNetProtections } = decisionPanelV2;
-      let protectionsArr = safetyNetProtections.map((p) =>
-        [p.id, p.reason].join(' - ')
-      );
-      return protectionsArr.join('\n');
+
+      try {
+        return safetyNetDialog?.safetyNetProtections
+          ?.map((item) => `${item?.id} - ${item?.reason}`)
+          .join('\n');
+      } catch (e) {
+        log(arguments.callee.name, e.stack);
+      }
     },
     getCurrentTimeStr() {
       return $utils.formatTime($utils.get.timeElapsed());
@@ -935,8 +947,7 @@ let $utils = {
   addNote(noteStr) {
     let decisionCard = shadowDOMSearch('yurt-core-decision-policy-card')?.[0];
     try {
-      decisionCard.annotation.notes =
-        '4C EDSA news report\nno violations\napprove\nrussian';
+      decisionCard.annotation.notes = noteStr;
     } catch (e) {
       console.log(
         `[❌ ${arguments.callee.name}]`,
@@ -1253,395 +1264,6 @@ async function $main() {
   if (!$timers.DISPLAY_STOPWATCH || !$timers.ACTION_PANEL) __UI.render();
 }
 
-let __UI = {
-  // Atomic Design System for creating components
-  atoms: {
-    card: ({ children }) => {
-      let elem = strToNode(`<yurt-core-card></yurt-core-card>`);
-
-      if (children?.length > 1) {
-        children.forEach((child) => elem.appendChild(child));
-        return elem;
-      }
-
-      elem.appendChild(children);
-      return elem;
-    },
-    button: ({ text, onClick, spec = 'flat-primary' }) => {
-      let btnStr = `<tcs-button ${spec && `spec=${spec}`}>${text}</tcs-button>`;
-
-      let btn = strToNode(btnStr);
-      btn.onclick = onClick;
-      return btn;
-    },
-
-    addNoteSwitch: strToNode(
-      `<mwc-formfield class='add-note-switch'><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text>`
-    ),
-  },
-  molecules: {
-    dropdown: ({ label, value, options }) => {
-      return strToNode(`<mwc-select naturalmenuwidth outlined label="${label}" value="${value}">
-                ${options
-                  ?.map(
-                    (option) =>
-                      `<mwc-list-item outlined ${
-                        option.label.includes('Wagner') ? 'selected' : ''
-                      } value="${option.value}" role="option">${
-                        option.label
-                      }</mwc-list-item>`
-                  )
-                  .join('')}
-              </mwc-select>`);
-    },
-  },
-  components: {
-    // Ready UI Components
-
-    btns: () => {
-      const { button: createButton } = __UI.atoms;
-      const { button: btnProps } = $props;
-
-      return {
-        approve: btnProps.approve.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-        strike: btnProps.strike.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-        route: btnProps.route.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-        comments: btnProps.comments.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-      };
-    },
-
-    // KNOWS HOW TO RENDER ITSELF
-    actionPanel: () => {
-      const { dropdown: createDropdown } = __UI.molecules;
-
-      let wrapperDiv = strToNode(
-        `<div style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
-      );
-
-      let routeDropdown = createDropdown($props.dropdown.strike);
-
-      let routeDiv = strToNode(`<div id="action-panel__route"></div>`);
-      let approveDiv = strToNode(`<div id="action-panel__route"></div>`);
-
-      approveDiv.replaceChildren(...__UI.components.btns().approve);
-      routeDiv.replaceChildren(...__UI.components.btns().route);
-
-      wrapperDiv.replaceChildren(routeDiv, approveDiv);
-      wrapperDiv.setAttribute('class', 'action-panel');
-
-      let element = __UI.atoms.card({ children: wrapperDiv });
-
-      // element.style.marginTop = '300px';
-
-      return {
-        element,
-        render() {
-          if (shadowDOMSearch('.action-panel')?.[0]) return;
-          $utils.appendNode(element);
-        },
-      };
-    },
-    commentsPanel: () => {
-      commentsPanelWrapper = strToNode(
-        `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
-      );
-
-      commentsPanelWrapper.replaceChildren(...__UI.components.btns().comments);
-
-      let element = __UI.atoms.card({ children: commentsPanelWrapper });
-
-      return {
-        element,
-        render() {
-          // return if there is a panel already
-          if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
-
-          $utils.appendNode(element);
-        },
-      };
-    },
-    strikePanel: () => {
-      const { dropdown: createDropdown } = __UI.molecules;
-      const { card: createCard } = __UI.atoms;
-
-      const dropdownMenu = createDropdown($props.dropdown.strike);
-      const strikeBtnContainer = strToNode(
-        `<div class="strike-panel container"></div>`
-      );
-
-      strikeBtnContainer.replaceChildren(
-        dropdownMenu,
-        ...__UI.components.btns().strike
-      );
-
-      const element = createCard({
-        children: strikeBtnContainer,
-      });
-
-      return {
-        element,
-        render() {
-          // return if there is a panel already
-          if (shadowDOMSearch('.strike-panel')?.[0]) return;
-
-          $utils.appendNode(element);
-        },
-      };
-    },
-    stopwatchPanel() {
-      const stopwatchWrapper = strToNode(
-        `<tcs-view spec="row" onclick="() => __UI.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-view>`
-      );
-
-      const getTimeStr = () => `${$utils.formatTime($utils.get.timeElapsed())}`;
-
-      const stopwatchDisplay = strToNode(
-        `<tcs-text>${getTimeStr()}</tcs-text>`
-      );
-
-      let parentNode = shadowDOMSearch(
-        'yurt-core-plugin-header > div > tcs-view'
-      )?.[0];
-
-      stopwatchWrapper.appendChild(stopwatchDisplay);
-
-      // SUPERUSER check
-      if ($config.SU) {
-        stopwatchWrapper.oncontextmenu = () => {
-          history.pushState({}, '', '#yort');
-          window.open('https://yurt.corp.google.com/#review');
-        };
-
-        stopwatchWrapper.onclick = () => {
-          $utils.removeLock();
-          __UI.components.stopwatchPanel().showTimers();
-          setTimeout(() => __UI.components.stopwatchPanel().showTimers(), 4000);
-        };
-      }
-
-      return {
-        element: stopwatchWrapper,
-        tick() {
-          stopwatchDisplay.innerText = getTimeStr();
-        },
-        render() {
-          // Already exists, don't render
-          if (shadowDOMSearch('.stopwatch')?.[0]) return;
-
-          if ($const.is.queue('comments')) {
-            parentNode = shadowDOMSearch('tcs-text[spec=title-2]')?.[0]
-              ?.shadowRoot;
-          }
-
-          try {
-            parentNode.appendChild(stopwatchWrapper);
-
-            $timers.DISPLAY_STOPWATCH = setInterval(() => {
-              this.tick();
-            }, 1000);
-          } catch (e) {
-            log('[❌] Could not append stopwatchPanel', e.stack);
-          }
-        },
-        showTimers() {
-          let existingTimers = shadowDOMSearch('.timers')?.[0];
-          if (existingTimers) {
-            existingTimers.remove();
-            return;
-          }
-          let timersWrapper = strToNode(
-            `<tcs-view class="timers container" spec="row"><tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(1, ${$const.is.autosubmit()});">1</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(2, ${$const.is.autosubmit()});">2</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(3, ${$const.is.autosubmit()});">3</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(4, ${$const.is.autosubmit()});">4</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(5, ${$const.is.autosubmit()});">5</tcs-button>
-                    <mwc-checkbox value="autoreload-page"></mwc-checkbox></tcs-view>`
-          );
-          parentNode.appendChild(timersWrapper);
-        },
-      };
-    },
-
-    approveNotesPanelObj: {
-      create() {},
-      render() {
-        this.create();
-      },
-    },
-    approveNotesPanel() {
-      const container = strToNode(
-        `<div class="approve-notes container"></div>`
-      );
-
-      let panel = strToNode(
-        `<mwc-list>${recommendationNotes.approve
-          .map(
-            (note) =>
-              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
-                note.title
-              }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
-          )
-          .join('')}</mwc-list>`
-      );
-
-      // add onclicks
-      [...panel.childNodes].forEach(
-        (noteItem) =>
-          (noteItem.onclick = () => {
-            // APPROVE NOTE RECOMMENDATION
-            $utils.addNote(noteItem.value);
-            shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
-            $utils.clickSave();
-          })
-      );
-
-      container.appendChild(panel);
-
-      return {
-        element: container,
-        render() {
-          if (shadowDOMSearch('.approve-notes')) return;
-          $utils.appendNode(container);
-        },
-      };
-    },
-    recommendationPanel({ notesArr }) {
-      // don't recommend in comments FOR NOW
-      if ($const.is.queue('comments')) return;
-
-      // create
-      let elemStr = `<mwc-list>${notesArr
-        .map(
-          (note) =>
-            `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
-              note.title
-            }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
-        )
-        .join('')}</mwc-list>`;
-
-      return {
-        element: strToNode(elemStr),
-        render(afterPolicy = false) {
-          if (afterPolicy) {
-            $utils.appendNode(strToNode(elemStr));
-          } else {
-            // find parent
-            const parent =
-              shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
-              shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
-                ?.shadowRoot;
-
-            parent?.appendChild(strToNode(elemStr));
-          }
-
-          // add onclicks
-          const recommendationItems = shadowDOMSearch('.recommendation-item');
-
-          recommendationItems?.forEach(
-            (item) =>
-              (item.onclick = () => {
-                if (afterPolicy) {
-                  // APPROVE NOTE RECOMMENDATION
-                  $utils.addNote(item.value);
-                  shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
-                  $utils.clickSave();
-                  return;
-                }
-                action.video.steps.addNote(item.value);
-              })
-          );
-        },
-      };
-    },
-    configPanel() {
-      let configPanel = strToNode(
-        `<tcs-view class="config-panel" spacing="small"></tcs-view>`
-      );
-      let noteSwitch = strToNode(
-        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text></div>`
-      );
-
-      let autoSubmit = strToNode(
-        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="Submit?" spec="body" texttype="default"></tcs-text></div>`
-      );
-
-      configPanel.replaceChildren(
-        ...noteSwitch.children,
-        ...autoSubmit.children
-      );
-      return configPanel;
-    },
-  },
-
-  // methods
-  render() {
-    const {
-      actionPanel,
-      commentsPanel,
-      strikePanel,
-      stopwatchPanel,
-      approveNotesPanel,
-    } = this.components;
-
-    try {
-      // render UI components every X seconds using setInterval
-      if (!$timers.STOPWATCH_ID) {
-        if (shadowDOMSearch('.stopwatch')) return;
-        $timers.STOPWATCH_ID = setInterval(
-          () => stopwatchPanel().render(),
-          $config.FUNCTION_CALL_RETRY_MS
-        );
-      }
-
-      if (
-        !shadowDOMSearch('.action-panel') ||
-        !shadowDOMSearch('.action-panel__comments')
-      ) {
-        clearInterval($timers.ACTION_PANEL);
-        $timers.ACTION_PANEL = setInterval(() => {
-          if ($const.is.queue('comments')) {
-            commentsPanel().render();
-            return;
-          }
-          actionPanel().render();
-        }, $config.FUNCTION_CALL_RETRY_MS);
-      }
-
-      if (!shadowDOMSearch('.strike-panel')) {
-        clearInterval($timers.STRIKE_PANEL);
-        $timers.STRIKE_PANEL = setInterval(() => {
-          strikePanel().render();
-        }, $config.FUNCTION_CALL_RETRY_MS);
-      }
-
-      if (!shadowDOMSearch('.approve-notes')) {
-        // render logic
-        clearInterval($timers.APPROVE_NOTES_PANEL);
-
-        $timers.APPROVE_NOTES_PANEL = setInterval(() => {
-          approveNotesPanel().render();
-        }, $config.FUNCTION_CALL_RETRY_MS);
-      }
-    } catch (e) {
-      if ($config.showLogs) {
-        log('[❌] :: UI.render() :: Could not append action panel.');
-      }
-
-      if ($config.showErrors) {
-        console.error(e);
-      }
-    }
-  },
-};
-
 let $props = {
   dropdown: {
     strike: {
@@ -1866,6 +1488,398 @@ let $props = {
   },
 };
 
+let __UI = {
+  // Atomic Design System for creating components
+  atoms: {
+    card: ({ children }) => {
+      let elem = strToNode(`<yurt-core-card></yurt-core-card>`);
+
+      if (children?.length > 1) {
+        children.forEach((child) => elem.appendChild(child));
+        return elem;
+      }
+
+      elem.appendChild(children);
+      return elem;
+    },
+    button: ({ text, onClick, spec = 'flat-primary' }) => {
+      let btnStr = `<tcs-button ${spec && `spec=${spec}`}>${text}</tcs-button>`;
+
+      let btn = strToNode(btnStr);
+      btn.onclick = onClick;
+      return btn;
+    },
+
+    addNoteSwitch: strToNode(
+      `<mwc-formfield class='add-note-switch'><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text>`
+    ),
+  },
+  molecules: {
+    dropdown: ({ label, value, options }) => {
+      return strToNode(`<mwc-select naturalmenuwidth outlined label="${label}" value="${value}">
+                ${options
+                  ?.map(
+                    (option) =>
+                      `<mwc-list-item outlined ${
+                        option.label.includes('Wagner') ? 'selected' : ''
+                      } value="${option.value}" role="option">${
+                        option.label
+                      }</mwc-list-item>`
+                  )
+                  .join('')}
+              </mwc-select>`);
+    },
+  },
+  components: {
+    // Ready UI Components
+
+    btns: () => {
+      const { button: createButton } = __UI.atoms;
+      const { button: btnProps } = $props;
+
+      return {
+        approve: btnProps.approve.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+        strike: btnProps.strike.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+        route: btnProps.route.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+        comments: btnProps.comments.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+      };
+    },
+
+    // KNOWS HOW TO RENDER ITSELF
+    actionPanel: () => {
+      const { dropdown: createDropdown } = __UI.molecules;
+
+      let wrapperDiv = strToNode(
+        `<div style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
+      );
+
+      let routeDropdown = createDropdown($props.dropdown.strike);
+
+      let routeDiv = strToNode(`<div id="action-panel__route"></div>`);
+      let approveDiv = strToNode(`<div id="action-panel__route"></div>`);
+
+      approveDiv.replaceChildren(...__UI.components.btns().approve);
+      routeDiv.replaceChildren(...__UI.components.btns().route);
+
+      wrapperDiv.replaceChildren(routeDiv, approveDiv);
+      wrapperDiv.setAttribute('class', 'action-panel');
+
+      let element = __UI.atoms.card({ children: wrapperDiv });
+
+      // element.style.marginTop = '300px';
+
+      return {
+        element,
+        render() {
+          if (shadowDOMSearch('.action-panel')?.[0]) return;
+          $utils.appendNode(element);
+        },
+      };
+    },
+    commentsPanel: () => {
+      commentsPanelWrapper = strToNode(
+        `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
+      );
+
+      commentsPanelWrapper.replaceChildren(...__UI.components.btns().comments);
+
+      let element = __UI.atoms.card({ children: commentsPanelWrapper });
+
+      return {
+        element,
+        render() {
+          // return if there is a panel already
+          if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
+
+          $utils.appendNode(element);
+        },
+      };
+    },
+    strikePanel: () => {
+      const { dropdown: createDropdown } = __UI.molecules;
+      const { card: createCard } = __UI.atoms;
+
+      const dropdownMenu = createDropdown($props.dropdown.strike);
+      const strikeBtnContainer = strToNode(
+        `<div class="strike-panel container"></div>`
+      );
+
+      strikeBtnContainer.replaceChildren(
+        dropdownMenu,
+        ...__UI.components.btns().strike
+      );
+
+      const element = createCard({
+        children: strikeBtnContainer,
+      });
+
+      return {
+        element,
+        render() {
+          // return if there is a panel already
+          if (shadowDOMSearch('.strike-panel')?.[0]) return;
+
+          $utils.appendNode(element);
+        },
+      };
+    },
+    stopwatchPanel() {
+      const stopwatchWrapper = strToNode(
+        `<tcs-view spec="row" onclick="() => __UI.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-view>`
+      );
+
+      const getTimeStr = () => `${$utils.formatTime($utils.get.timeElapsed())}`;
+
+      const stopwatchDisplay = strToNode(
+        `<tcs-text>${getTimeStr()}</tcs-text>`
+      );
+
+      let parentNode = shadowDOMSearch(
+        'yurt-core-plugin-header > div > tcs-view'
+      )?.[0];
+
+      stopwatchWrapper.appendChild(stopwatchDisplay);
+
+      // SUPERUSER check
+      if ($config.SU) {
+        stopwatchWrapper.oncontextmenu = () => {
+          history.pushState({}, '', '#yort');
+          window.open('https://yurt.corp.google.com/#review');
+        };
+
+        stopwatchWrapper.onclick = () => {
+          $utils.removeLock();
+          __UI.components.stopwatchPanel().showTimers();
+          setTimeout(() => __UI.components.stopwatchPanel().showTimers(), 4000);
+        };
+      }
+
+      return {
+        element: stopwatchWrapper,
+        tick() {
+          stopwatchDisplay.innerText = getTimeStr();
+        },
+        render() {
+          // Already exists, don't render
+          if (shadowDOMSearch('.stopwatch')?.[0]) return;
+
+          if ($const.is.queue('comments')) {
+            parentNode = shadowDOMSearch('tcs-text[spec=title-2]')?.[0]
+              ?.shadowRoot;
+          }
+
+          try {
+            parentNode.appendChild(stopwatchWrapper);
+
+            $timers.DISPLAY_STOPWATCH = setInterval(() => {
+              this.tick();
+            }, 1000);
+          } catch (e) {
+            log('[❌] Could not append stopwatchPanel', e.stack);
+          }
+        },
+        showTimers() {
+          let existingTimers = shadowDOMSearch('.timers')?.[0];
+          if (existingTimers) {
+            existingTimers.remove();
+            return;
+          }
+          let timersWrapper = strToNode(
+            `<tcs-view class="timers container" spec="row"><tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(1, ${$const.is.autosubmit()});">1</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(2, ${$const.is.autosubmit()});">2</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(3, ${$const.is.autosubmit()});">3</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(4, ${$const.is.autosubmit()});">4</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(5, ${$const.is.autosubmit()});">5</tcs-button>
+                    <mwc-checkbox value="autoreload-page"></mwc-checkbox></tcs-view>`
+          );
+          parentNode.appendChild(timersWrapper);
+        },
+      };
+    },
+    approveNotesPanel() {
+      const container = strToNode(
+        `<div class="approve-notes container"></div>`
+      );
+
+      let panel = strToNode(
+        `<mwc-list>${recommendationNotes.approve
+          .map(
+            (note) =>
+              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><tcs-text>${
+                note.title
+              }</tcs-text><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
+          )
+          .join('')}</mwc-list>`
+      );
+
+      // add onclicks
+      [...panel.childNodes].forEach(
+        (noteItem) =>
+          (noteItem.onclick = () => {
+            // APPROVE NOTE RECOMMENDATION
+            $utils.addNote(noteItem.value);
+            console.log('note', noteItem.value);
+            shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
+            $utils.clickSave();
+          })
+      );
+
+      container.appendChild(panel);
+
+      return {
+        element: container,
+        render() {
+          if (shadowDOMSearch('.approve-notes')) return;
+          $utils.appendNode(container);
+        },
+      };
+    },
+    recommendationPanel({ notesArr }) {
+      // don't recommend in comments FOR NOW
+      if ($const.is.queue('comments')) return;
+
+      // create
+      const container = strToNode(
+        `<div class="notes-recommendation container"></div>`
+      );
+
+      let recommendationList = strToNode(
+        `<mwc-list>${notesArr
+          .map(
+            (note) =>
+              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
+                note.title
+              }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
+          )
+          .join('')}</mwc-list>`
+      );
+
+      [...recommendationList.childNodes].forEach(
+        (node) =>
+          (node.onclick = () => {
+            console.log('action.video.steps.addNote(item.value)');
+            action.video.steps.addNote(node.value);
+          })
+      );
+
+      container.appendChild(recommendationList);
+
+      return {
+        element: container,
+        render() {
+          // find parent
+          const parent =
+            shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
+            shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
+              ?.shadowRoot;
+
+          parent?.appendChild(container);
+        },
+      };
+    },
+    configPanel() {
+      let configPanel = strToNode(
+        `<tcs-view class="config-panel" spacing="small"></tcs-view>`
+      );
+      let noteSwitch = strToNode(
+        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text></div>`
+      );
+
+      let autoSubmit = strToNode(
+        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="Submit?" spec="body" texttype="default"></tcs-text></div>`
+      );
+
+      configPanel.replaceChildren(
+        ...noteSwitch.children,
+        ...autoSubmit.children
+      );
+      return configPanel;
+    },
+  },
+
+  // methods
+  render() {
+    const {
+      actionPanel,
+      commentsPanel,
+      strikePanel,
+      stopwatchPanel,
+      approveNotesPanel,
+    } = this.components;
+
+    try {
+      // render UI components every X seconds using setInterval
+      if (!$timers.STOPWATCH_ID) {
+        if (shadowDOMSearch('.stopwatch')) return;
+        $timers.STOPWATCH_ID = setInterval(
+          () => stopwatchPanel().render(),
+          $config.FUNCTION_CALL_RETRY_MS
+        );
+      }
+
+      if ($const.is.queue('comments')) {
+        commentsPanel().render();
+        return;
+      }
+
+      if (!$timers.RIGHT_PANEL_ID) {
+        $timers.RIGHT_PANEL_ID = setInterval(() => {
+          if (shadowDOMSearch('.superuser-panel')) return;
+          $utils.appendNode(rightPanel);
+        }, $config.FUNCTION_CALL_RETRY_MS);
+      }
+
+      // if (!shadowDOMSearch('.strike-panel')) {
+      //   clearInterval($timers.STRIKE_PANEL);
+      //   $timers.STRIKE_PANEL = setInterval(() => {
+      //     strikePanel().render();
+      //   }, $config.FUNCTION_CALL_RETRY_MS);
+      // }
+
+      // if (!shadowDOMSearch('.approve-notes')) {
+      //   // render logic
+      //   clearInterval($timers.APPROVE_NOTES_PANEL);
+
+      //   $timers.APPROVE_NOTES_PANEL = setInterval(() => {
+      //     approveNotesPanel().render();
+      //   }, $config.FUNCTION_CALL_RETRY_MS);
+      // }
+    } catch (e) {
+      if ($config.showLogs) {
+        log('[❌] :: UI.render() :: Could not append action panel.');
+      }
+
+      if ($config.showErrors) {
+        console.error(e);
+      }
+    }
+  },
+};
+
+let rightPanel = (function () {
+  const { actionPanel, strikePanel, approveNotesPanel } = __UI.components;
+
+  let container = strToNode(
+    `<div class="superuser-panel" style="padding-bottom: 500px;"></div>`
+  );
+  const elemsArr = [
+    actionPanel().element,
+    strikePanel().element,
+    approveNotesPanel().element,
+  ];
+  elemsArr.forEach((elem) => container.appendChild(elem));
+
+  return container;
+})();
+
 let $timers = {
   SUBMIT_ID: null,
   STOPWATCH_ID: null,
@@ -1933,14 +1947,18 @@ let action = {
         $utils.click.radio({ value: 'no' });
       },
       addNote(note) {
-        let noteInputBox =
-          shadowDOMSearch('.notes-input')?.[0] ||
-          shadowDOMSearch(
-            'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
-          )?.[0];
+        try {
+          let noteInputBox =
+            shadowDOMSearch('.notes-input')?.[0] ||
+            shadowDOMSearch(
+              'mwc-textarea[data-test-id=core-decision-policy-edit-notes]'
+            )?.[0];
 
-        noteInputBox.value = note;
-        action.video.steps.selectTextArea();
+          noteInputBox.value = note;
+          action.video.steps.selectTextArea();
+        } catch (e) {
+          log(arguments.callee.name, e.stack);
+        }
       },
       selectTextArea() {
         let link;
