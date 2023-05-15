@@ -1868,7 +1868,7 @@ let rightPanel = (function () {
   const { actionPanel, strikePanel, approveNotesPanel } = __UI.components;
 
   let container = strToNode(
-    `<div class="superuser-panel" style="padding-bottom: 500px;"></div>`
+    `<div class="superuser-panel" style="display: flex; flex-direction: column;justify-content: start; gap: 1rem; padding: 3rem 0 10rem 0;"></div>`
   );
   const elemsArr = [
     actionPanel().element,
