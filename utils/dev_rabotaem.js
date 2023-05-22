@@ -169,27 +169,7 @@ let $const = {
         ?.readyForSubmit;
     },
     queue(qName) {
-      return $utils.get.queueInfo()?.queueName?.toLowerCase().includes(qName);
-    },
-    xsourceQueue() {
-      let queueInfo = $utils.get.queueInfo();
-      if (!queueInfo) {
-        return false;
-      }
-      return (
-        queueInfo?.queueName.toLowerCase().includes('xsource') &&
-        queueInfo?.queueName.toLowerCase().includes('ve')
-      );
-    },
-    bluechipQueue() {
-      let queueInfo = $utils.get.queueInfo();
-      if (!queueInfo) {
-        return;
-      }
-      return $utils.get
-        .queueInfo()
-        .queueName?.toLowerCase()
-        .includes('bluechip');
+      return $utils.get.queue.name()?.includes(qName);
     },
   },
 };
@@ -220,28 +200,6 @@ function shadowDOMSearch(query) {
   }
   shadowSearch(document.querySelector('yurt-root-app').shadowRoot, query);
   return myElement;
-}
-
-function expandAddReview() {
-  const policiesWrapper = shadowDOMSearch('.policies-wrapper')?.[0];
-  const sidebarBtns = shadowDOMSearch('.action-buttons')?.[0];
-
-  try {
-    sidebarBtns.style.paddingBottom = '100px';
-    policiesWrapper.style.maxHeight = '550px';
-    policiesWrapper.style.height = '550px';
-  } catch (e) {
-    // console.error('Could not expand add review', e);
-  }
-}
-
-function strToNode(str) {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = str;
-  if (tmp.childNodes.length < 2) {
-    return tmp.childNodes[0];
-  }
-  return tmp.childNodes;
 }
 
 let recommendationNotes = {
@@ -594,73 +552,12 @@ let $utils = {
       return result;
     },
     videoId() {
-      return $utils.get.queueInfo().entityID;
+      return $utils.get.queue.info().entityID;
     },
     videoTimestamp() {
       let videoRoot = shadowDOMSearch('yurt-video-root')[0];
 
       return $utils.formatTime(videoRoot.playerApi.getCurrentTime());
-    },
-    queueInfo() {
-      var queueName;
-      var queueTier;
-      var entityID;
-      var reviewStatus = shadowDOMSearch('yurt-review-root')?.[0];
-
-      if (!reviewStatus?.hostAllocatedMessage) return;
-
-      for (const property in Object.keys(reviewStatus.hostAllocatedMessage)) {
-        if (
-          Object.keys(reviewStatus.hostAllocatedMessage)[property] ===
-          'queueName'
-        ) {
-          queueName = reviewStatus.hostAllocatedMessage.queueName;
-          queueTier = reviewStatus.hostAllocatedMessage.queueTier;
-          break;
-        } else if (
-          reviewStatus.hostAllocatedMessage[
-            Object.keys(reviewStatus.hostAllocatedMessage)[property]
-          ].hasOwnProperty('queue')
-        ) {
-          var queueData =
-            reviewStatus.hostAllocatedMessage[
-              Object.keys(reviewStatus.hostAllocatedMessage)[property]
-            ].queue;
-          queueName = queueData.name;
-          queueTier = queueData.tier;
-          break;
-        }
-      }
-      entityID =
-        reviewStatus.hostAllocatedMessage.yurtEntityId[
-          Object.keys(reviewStatus.hostAllocatedMessage.yurtEntityId)[0]
-        ];
-      return { queueName, queueTier, entityID };
-    },
-    queueName() {
-      let queueInfo = $utils.get.queueInfo();
-      return queueInfo?.queueName?.toLowerCase();
-    },
-    queueLanguage() {
-      return $utils.get.queueName()()?.split('-')?.[3]?.trim()?.toLowerCase();
-    },
-    seekVideo(timestampStr) {
-      let videoRoot = shadowDOMSearch('yurt-video-root')[0];
-      let timeArr = timestampStr.split(':');
-      let h, m, s, secondsTotal;
-      if (timeArr.length === 3) {
-        // has hours : minutes : seconds
-        [h, m, s] = timeArr;
-        secondsTotal = parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(s);
-      } else if (timeArr.length === 2) {
-        // minutes : seconds
-        [m, s] = timeArr;
-        secondsTotal = parseInt(m) * 60 + parseInt(s);
-      }
-
-      log(secondsTotal);
-
-      videoRoot.playerApi.seekTo(secondsTotal);
     },
     selectedVEGroup(label = false) {
       const textLabel = shadowDOMSearch(
@@ -672,6 +569,54 @@ let $utils = {
       )?.[0].value;
 
       return label ? textLabel : value;
+    },
+    queue: {
+      info() {
+        var queueName;
+        var queueTier;
+        var entityID;
+        var reviewStatus = shadowDOMSearch('yurt-review-root')?.[0];
+
+        if (!reviewStatus?.hostAllocatedMessage) return;
+
+        for (const property in Object.keys(reviewStatus.hostAllocatedMessage)) {
+          if (
+            Object.keys(reviewStatus.hostAllocatedMessage)[property] ===
+            'queueName'
+          ) {
+            queueName = reviewStatus.hostAllocatedMessage.queueName;
+            queueTier = reviewStatus.hostAllocatedMessage.queueTier;
+            break;
+          } else if (
+            reviewStatus.hostAllocatedMessage[
+              Object.keys(reviewStatus.hostAllocatedMessage)[property]
+            ].hasOwnProperty('queue')
+          ) {
+            var queueData =
+              reviewStatus.hostAllocatedMessage[
+                Object.keys(reviewStatus.hostAllocatedMessage)[property]
+              ].queue;
+            queueName = queueData.name;
+            queueTier = queueData.tier;
+            break;
+          }
+        }
+        entityID =
+          reviewStatus.hostAllocatedMessage.yurtEntityId[
+            Object.keys(reviewStatus.hostAllocatedMessage.yurtEntityId)[0]
+          ];
+        return { queueName, queueTier, entityID };
+      },
+      name() {
+        let queueInfo = $utils.get.queue.info();
+        return queueInfo?.queueName?.toLowerCase();
+      },
+      type() {
+        return this.name()?.split('-')?.[1]?.trim();
+      },
+      language() {
+        return this.name()?.split('-')?.[3]?.trim();
+      },
     },
   },
   questionnaire: {
@@ -884,6 +829,7 @@ let $utils = {
     return `${hoursString}:${minutesString}:${secondsString}`;
   },
 
+  // UI
   appendNode(node, parent) {
     parent = shadowDOMSearch(
       'yurt-core-decision-annotation-tabs > div:nth-child(1)'
@@ -896,7 +842,16 @@ let $utils = {
       log(arguments.callee.name, e.stack);
     }
   },
+  strToNode(str) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = str;
+    if (tmp.childNodes.length < 2) {
+      return tmp.childNodes[0];
+    }
+    return tmp.childNodes;
+  },
 
+  // Channel
   async getChannelVideos() {
     let videosArr = await fetch(
       'https://yurt.corp.google.com/_/backends/account/v1/videos:fetch?alt=json&key=AIzaSyDYl294dgpLu1jAgBqOQ33gCSgou0zEd7U',
@@ -944,7 +899,7 @@ let $utils = {
   },
 
   // SETTERS //
-  addNote(noteStr) {
+  setNote(noteStr) {
     let decisionCard = shadowDOMSearch('yurt-core-decision-policy-card')?.[0];
     try {
       decisionCard.annotation.notes = noteStr;
@@ -966,6 +921,18 @@ let $utils = {
 
     // increase size of note input box
     notesTextArea.rows = rows;
+  },
+  expandPoliciesContainer() {
+    const policiesWrapper = shadowDOMSearch('.policies-wrapper')?.[0];
+    const sidebarBtns = shadowDOMSearch('.action-buttons')?.[0];
+
+    try {
+      sidebarBtns.style.paddingBottom = '100px';
+      policiesWrapper.style.maxHeight = '550px';
+      policiesWrapper.style.height = '550px';
+    } catch (e) {
+      // console.error('Could not expand add review', e);
+    }
   },
   setTimer(vremya, reload = $const.is.autosubmit()) {
     // clean old submit timer
@@ -1035,9 +1002,7 @@ let $utils = {
       log(arguments.callee.name, e.stack);
     }
   },
-  closePage(ms) {
-    setTimeout(window.close, ms);
-  },
+
   sendNotification(text, close = true) {
     let n = new Notification(text);
     // this.clearLastNotification();
@@ -1049,25 +1014,6 @@ let $utils = {
     // clear notification after 10 seconds
     close &&
       setTimeout(() => n.close(), $config.NOTIFICATION_TIMEOUT_SEC * 1000);
-  },
-  fullReset() {
-    clearInterval($timers.LOCK_INTERVAL);
-    clearInterval($timers.RELOAD_ID);
-    clearInterval($timers.SUBMIT_ID);
-    clearTimeout($timers.SUBMIT_ID);
-    clearInterval($timers.MY_REVIEWS_INTERVAL);
-    clearInterval($timers.STRIKE_ID);
-    $const.AUTOSUBMIT = false;
-
-    [
-      $timers.LOCK_INTERVAL,
-      $timers.RELOAD_ID,
-      $timers.SUBMIT_ID,
-      $timers.MY_REVIEWS_INTERVAL,
-      $timers.STRIKE_ID,
-    ] = [null, null, null, null, null];
-
-    console.table($timers);
   },
   removeLock(reset = false) {
     let lock = shadowDOMSearch('yurt-review-activity-dialog')[0];
@@ -1085,9 +1031,42 @@ let $utils = {
       )}`
     );
   },
+
+  seekVideo(timestampStr) {
+    let videoRoot = shadowDOMSearch('yurt-video-root')[0];
+    let timeArr = timestampStr.split(':');
+    let h, m, s, secondsTotal;
+    if (timeArr.length === 3) {
+      // has hours : minutes : seconds
+      [h, m, s] = timeArr;
+      secondsTotal = parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(s);
+    } else if (timeArr.length === 2) {
+      // minutes : seconds
+      [m, s] = timeArr;
+      secondsTotal = parseInt(m) * 60 + parseInt(s);
+    }
+
+    log(secondsTotal);
+
+    videoRoot.playerApi.seekTo(secondsTotal);
+  },
+  clearTimers() {
+    Object.keys($timers).forEach((timer) => {
+      clearTimeout($timers[timer]);
+      clearInterval($timers[timer]);
+      log(`[🧹] removed ${timer} = ${$timers[timer]}`);
+      $timers.timer = 0;
+    });
+  },
+};
+
+$lib = {
   changeFavIcon(icon) {
     let currentIcon = document.querySelector("link[rel~='icon']");
     currentIcon.href = icon ? icon : 'https://www.google.com/favicon.ico';
+  },
+  closePage(ms) {
+    setTimeout(window.close, ms);
   },
   dVideo() {
     let ytpPlayer = shadowDOMSearch('ytp-player')?.[0];
@@ -1097,14 +1076,6 @@ let $utils = {
   dVideoNew() {
     return $reviewRoot.hostAllocatedMessage.reviewData.videoReviewData
       .playerMetadata.playerResponse.uneditedVideoInfo.previewServerUrl;
-  },
-  clearTimers() {
-    Object.keys($timers).forEach((timer) => {
-      clearTimeout($timers[timer]);
-      clearInterval($timers[timer]);
-      log(`[🧹] removed ${timer} = ${$timers[timer]}`);
-      $timers.timer = 0;
-    });
   },
 };
 
@@ -1183,7 +1154,7 @@ function answerQuestion(question, answers) {
     setTimeout(() => $utils.expandNotesArea(), 1);
 
     // SHOW RECOMMENDATIONS
-    __UI.components
+    $ui.components
       .recommendationPanel({
         notesArr: recommendationNotes.strike[chosenPolicyId],
       })
@@ -1223,45 +1194,6 @@ function clearTimers() {
     log(`[🧹] removed ${timer} = ${$timers[timer]}`);
     $timers.timer = 0;
   });
-}
-
-async function $main() {
-  // Event Listeners & Notifications
-  window.addEventListener('message', function (event) {
-    const { click, sendNotification, removeLock } = $utils;
-    const notFocused = () => !document.hasFocus();
-
-    // New video, send notification if not focused
-    if (event.data.name === 'HOST_ALLOCATED') {
-      notFocused() && sendNotification(`New item 👀`);
-
-      $utils.setFrequentlyUsedPolicies();
-      removeLock();
-
-      // click reviews tab
-      setTimeout(() => {
-        log("[i] Click 'My Reviews Tab'");
-        click.element('mwc-tab', {
-          label: '"My Reviews (0)"',
-        });
-        click.element('mwc-tab', {
-          label: '"My Reviews"',
-        });
-      }, 1500);
-    }
-
-    // Submitted video, send notification
-    if (event.data.name === 'APP_REVIEW_COMPLETED' && notFocused()) {
-      sendNotification(
-        `✅ Submitted at ${new Date().toJSON().split('T')[1].slice(0, 8)}`
-      );
-
-      // removeLock();
-    }
-  });
-
-  // TIMERS
-  if (!$timers.DISPLAY_STOPWATCH || !$timers.ACTION_PANEL) __UI.render();
 }
 
 let $props = {
@@ -1340,14 +1272,15 @@ let $props = {
         text: '🇸🇦 Arabic',
         onClick: () =>
           action.video.route(
-            've xsource arabic',
+            `ve ${$utils.get.queue.type()} arabic`,
             'arabic',
             'routing for language'
           ),
       },
       {
         text: '💉💲 Drugs',
-        onClick: () => action.video.route('drugs xsource', 'drugs'),
+        onClick: () =>
+          action.video.route(`drugs ${$utils.get.queue.type()}`, 'drugs'),
       },
       {
         text: '🧨 H&D ',
@@ -1355,7 +1288,11 @@ let $props = {
       },
       {
         text: '🥩 Graphic',
-        onClick: () => action.video.route('graphic violence xsource', 'gv'),
+        onClick: () =>
+          action.video.route(
+            `graphic violence ${$utils.get.queue.type()}`,
+            'gv'
+          ),
       },
       {
         text: '⚡ Hate',
@@ -1364,7 +1301,10 @@ let $props = {
       {
         text: '🏹 Harass',
         onClick: () =>
-          action.video.route('harassment xsource russian', 'harass'),
+          action.video.route(
+            `harassment ${$utils.get.queue.type()} russian`,
+            'harass'
+          ),
       },
       { text: '🔞 Adult', onClick: () => action.video.route('adult', 'adult') },
       { text: '📬 SPAM', onClick: () => action.video.route('spam', 'spam') },
@@ -1382,7 +1322,12 @@ let $props = {
       },
       {
         text: '🔐 T2/FTE',
-        onClick: () => action.video.route('t2', 't2', 'protections'),
+        onClick: () =>
+          action.video.route(
+            $const.is.queue('t2') ? 'fte' : 't2',
+            't2',
+            'protections'
+          ),
       },
     ],
     comments: [
@@ -1488,11 +1433,11 @@ let $props = {
   },
 };
 
-let __UI = {
+let $ui = {
   // Atomic Design System for creating components
   atoms: {
-    card: ({ children }) => {
-      let elem = strToNode(`<yurt-core-card></yurt-core-card>`);
+    card({ children }) {
+      let elem = $utils.strToNode(`<yurt-core-card></yurt-core-card>`);
 
       if (children?.length > 1) {
         children.forEach((child) => elem.appendChild(child));
@@ -1502,21 +1447,15 @@ let __UI = {
       elem.appendChild(children);
       return elem;
     },
-    button: ({ text, onClick, spec = 'flat-primary' }) => {
+    button({ text, onClick, spec = 'flat-primary' }) {
       let btnStr = `<tcs-button ${spec && `spec=${spec}`}>${text}</tcs-button>`;
 
-      let btn = strToNode(btnStr);
+      let btn = $utils.strToNode(btnStr);
       btn.onclick = onClick;
       return btn;
     },
-
-    addNoteSwitch: strToNode(
-      `<mwc-formfield class='add-note-switch'><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text>`
-    ),
-  },
-  molecules: {
-    dropdown: ({ label, value, options }) => {
-      return strToNode(`<mwc-select naturalmenuwidth outlined label="${label}" value="${value}">
+    dropdown({ label, value, options }) {
+      return $utils.strToNode(`<mwc-select naturalmenuwidth outlined label="${label}" value="${value}">
                 ${options
                   ?.map(
                     (option) =>
@@ -1529,12 +1468,21 @@ let __UI = {
                   .join('')}
               </mwc-select>`);
     },
+
+    switch(label, className) {
+      let node =
+        $utils.strToNode(`<tcs-view padding="small" fillwidth="" display="flex" spec="row" wrap="nowrap" align="stretch" spacing="none"><mwc-formfield>
+      <mwc-switch class=${className} id=${className}></mwc-switch>
+    </mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`);
+
+      return node;
+    },
   },
   components: {
     // Ready UI Components
 
     btns: () => {
-      const { button: createButton } = __UI.atoms;
+      const { button: createButton } = $ui.atoms;
       const { button: btnProps } = $props;
 
       return {
@@ -1552,27 +1500,21 @@ let __UI = {
         ),
       };
     },
-
-    // KNOWS HOW TO RENDER ITSELF
     actionPanel: () => {
-      const { dropdown: createDropdown } = __UI.molecules;
-
-      let wrapperDiv = strToNode(
+      let wrapperDiv = $utils.strToNode(
         `<div style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
       );
 
-      let routeDropdown = createDropdown($props.dropdown.strike);
+      let routeDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
+      let approveDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
 
-      let routeDiv = strToNode(`<div id="action-panel__route"></div>`);
-      let approveDiv = strToNode(`<div id="action-panel__route"></div>`);
-
-      approveDiv.replaceChildren(...__UI.components.btns().approve);
-      routeDiv.replaceChildren(...__UI.components.btns().route);
+      approveDiv.replaceChildren(...$ui.components.btns().approve);
+      routeDiv.replaceChildren(...$ui.components.btns().route);
 
       wrapperDiv.replaceChildren(routeDiv, approveDiv);
       wrapperDiv.setAttribute('class', 'action-panel');
 
-      let element = __UI.atoms.card({ children: wrapperDiv });
+      let element = $ui.atoms.card({ children: wrapperDiv });
 
       // element.style.marginTop = '300px';
 
@@ -1585,13 +1527,13 @@ let __UI = {
       };
     },
     commentsPanel: () => {
-      commentsPanelWrapper = strToNode(
+      commentsPanelWrapper = $utils.strToNode(
         `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
       );
 
-      commentsPanelWrapper.replaceChildren(...__UI.components.btns().comments);
+      commentsPanelWrapper.replaceChildren(...$ui.components.btns().comments);
 
-      let element = __UI.atoms.card({ children: commentsPanelWrapper });
+      let element = $ui.atoms.card({ children: commentsPanelWrapper });
 
       return {
         element,
@@ -1604,17 +1546,17 @@ let __UI = {
       };
     },
     strikePanel: () => {
-      const { dropdown: createDropdown } = __UI.molecules;
-      const { card: createCard } = __UI.atoms;
+      const { dropdown: createDropdown } = $ui.atoms;
+      const { card: createCard } = $ui.atoms;
 
       const dropdownMenu = createDropdown($props.dropdown.strike);
-      const strikeBtnContainer = strToNode(
+      const strikeBtnContainer = $utils.strToNode(
         `<div class="strike-panel container"></div>`
       );
 
       strikeBtnContainer.replaceChildren(
         dropdownMenu,
-        ...__UI.components.btns().strike
+        ...$ui.components.btns().strike
       );
 
       const element = createCard({
@@ -1632,40 +1574,34 @@ let __UI = {
       };
     },
     stopwatchPanel() {
-      const stopwatchWrapper = strToNode(
-        `<tcs-view spec="row" onclick="() => __UI.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-view>`
-      );
-
       const getTimeStr = () => `${$utils.formatTime($utils.get.timeElapsed())}`;
 
-      const stopwatchDisplay = strToNode(
-        `<tcs-text>${getTimeStr()}</tcs-text>`
+      const stopwatch = $utils.strToNode(
+        `<tcs-chip spec="tag" text=${getTimeStr()} onclick="() => $ui.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-chip>`
       );
 
       let parentNode = shadowDOMSearch(
         'yurt-core-plugin-header > div > tcs-view'
       )?.[0];
 
-      stopwatchWrapper.appendChild(stopwatchDisplay);
-
       // SUPERUSER check
       if ($config.SU) {
-        stopwatchWrapper.oncontextmenu = () => {
+        stopwatch.oncontextmenu = () => {
           history.pushState({}, '', '#yort');
           window.open('https://yurt.corp.google.com/#review');
         };
 
-        stopwatchWrapper.onclick = () => {
+        stopwatch.onclick = () => {
           $utils.removeLock();
-          __UI.components.stopwatchPanel().showTimers();
-          setTimeout(() => __UI.components.stopwatchPanel().showTimers(), 4000);
+          $ui.components.stopwatchPanel().showTimers();
+          setTimeout(() => $ui.components.stopwatchPanel().showTimers(), 4000);
         };
       }
 
       return {
-        element: stopwatchWrapper,
+        element: stopwatch,
         tick() {
-          stopwatchDisplay.innerText = getTimeStr();
+          stopwatch.text = getTimeStr();
         },
         render() {
           // Already exists, don't render
@@ -1677,7 +1613,7 @@ let __UI = {
           }
 
           try {
-            parentNode.appendChild(stopwatchWrapper);
+            parentNode.appendChild(stopwatch);
 
             $timers.DISPLAY_STOPWATCH = setInterval(() => {
               this.tick();
@@ -1692,12 +1628,12 @@ let __UI = {
             existingTimers.remove();
             return;
           }
-          let timersWrapper = strToNode(
-            `<tcs-view class="timers container" spec="row"><tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(1, ${$const.is.autosubmit()});">1</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(2, ${$const.is.autosubmit()});">2</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(3, ${$const.is.autosubmit()});">3</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(4, ${$const.is.autosubmit()});">4</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" onclick="$utils.setTimer(5, ${$const.is.autosubmit()});">5</tcs-button>
+          let timersWrapper = $utils.strToNode(
+            `<tcs-view class="timers container" align="center" spec="row"><tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(1, ${$const.is.autosubmit()});">1</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(2, ${$const.is.autosubmit()});">2</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(3, ${$const.is.autosubmit()});">3</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(4, ${$const.is.autosubmit()});">4</tcs-button>
+                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(5, ${$const.is.autosubmit()});">5</tcs-button>
                     <mwc-checkbox value="autoreload-page"></mwc-checkbox></tcs-view>`
           );
           parentNode.appendChild(timersWrapper);
@@ -1705,11 +1641,11 @@ let __UI = {
       };
     },
     approveNotesPanel() {
-      const container = strToNode(
+      const container = $utils.strToNode(
         `<div class="approve-notes container"></div>`
       );
 
-      let panel = strToNode(
+      let panel = $utils.strToNode(
         `<mwc-list>${recommendationNotes.approve
           .map(
             (note) =>
@@ -1725,7 +1661,7 @@ let __UI = {
         (noteItem) =>
           (noteItem.onclick = () => {
             // APPROVE NOTE RECOMMENDATION
-            $utils.addNote(noteItem.value);
+            $utils.setNote(noteItem.value);
             console.log('note', noteItem.value);
             shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
             $utils.clickSave();
@@ -1746,12 +1682,7 @@ let __UI = {
       // don't recommend in comments FOR NOW
       if ($const.is.queue('comments')) return;
 
-      // create
-      const container = strToNode(
-        `<div class="notes-recommendation container"></div>`
-      );
-
-      let recommendationList = strToNode(
+      let recommendationList = $utils.strToNode(
         `<mwc-list>${notesArr
           .map(
             (note) =>
@@ -1765,15 +1696,12 @@ let __UI = {
       [...recommendationList.childNodes].forEach(
         (node) =>
           (node.onclick = () => {
-            console.log('action.video.steps.addNote(item.value)');
             action.video.steps.addNote(node.value);
           })
       );
 
-      container.appendChild(recommendationList);
-
       return {
-        element: container,
+        element: recommendationList,
         render() {
           // find parent
           const parent =
@@ -1781,19 +1709,19 @@ let __UI = {
             shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
               ?.shadowRoot;
 
-          parent?.appendChild(container);
+          parent?.appendChild(recommendationList);
         },
       };
     },
     configPanel() {
-      let configPanel = strToNode(
+      let configPanel = $utils.strToNode(
         `<tcs-view class="config-panel" spacing="small"></tcs-view>`
       );
-      let noteSwitch = strToNode(
+      let noteSwitch = $utils.strToNode(
         `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text></div>`
       );
 
-      let autoSubmit = strToNode(
+      let autoSubmit = $utils.strToNode(
         `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="Submit?" spec="body" texttype="default"></tcs-text></div>`
       );
 
@@ -1807,13 +1735,7 @@ let __UI = {
 
   // methods
   render() {
-    const {
-      actionPanel,
-      commentsPanel,
-      strikePanel,
-      stopwatchPanel,
-      approveNotesPanel,
-    } = this.components;
+    const { commentsPanel, stopwatchPanel } = this.components;
 
     try {
       // render UI components every X seconds using setInterval
@@ -1836,49 +1758,13 @@ let __UI = {
           $utils.appendNode(rightPanel);
         }, $config.FUNCTION_CALL_RETRY_MS);
       }
-
-      // if (!shadowDOMSearch('.strike-panel')) {
-      //   clearInterval($timers.STRIKE_PANEL);
-      //   $timers.STRIKE_PANEL = setInterval(() => {
-      //     strikePanel().render();
-      //   }, $config.FUNCTION_CALL_RETRY_MS);
-      // }
-
-      // if (!shadowDOMSearch('.approve-notes')) {
-      //   // render logic
-      //   clearInterval($timers.APPROVE_NOTES_PANEL);
-
-      //   $timers.APPROVE_NOTES_PANEL = setInterval(() => {
-      //     approveNotesPanel().render();
-      //   }, $config.FUNCTION_CALL_RETRY_MS);
-      // }
     } catch (e) {
       if ($config.showLogs) {
         log('[❌] :: UI.render() :: Could not append action panel.');
       }
-
-      if ($config.showErrors) {
-        console.error(e);
-      }
     }
   },
 };
-
-let rightPanel = (function () {
-  const { actionPanel, strikePanel, approveNotesPanel } = __UI.components;
-
-  let container = strToNode(
-    `<div class="superuser-panel" style="display: flex; flex-direction: column;justify-content: start; gap: 1rem; padding: 3rem 0 10rem 0;"></div>`
-  );
-  const elemsArr = [
-    actionPanel().element,
-    strikePanel().element,
-    approveNotesPanel().element,
-  ];
-  elemsArr.forEach((elem) => container.appendChild(elem));
-
-  return container;
-})();
 
 let $timers = {
   SUBMIT_ID: null,
@@ -1898,7 +1784,7 @@ let action = {
 
         setTimeout(() => {
           $utils.setFrequentlyUsedPolicies();
-          expandAddReview();
+          $utils.expandPoliciesContainer();
         }, 1);
       },
       selectPolicy(policyId) {
@@ -1989,7 +1875,7 @@ let action = {
       // SHOW RECOMMENDATIONS
       setTimeout(
         () =>
-          __UI.components
+          $ui.components
             .recommendationPanel({ notesArr: recommendationNotes.approve })
             .render(true),
         1000
@@ -2026,7 +1912,7 @@ let action = {
       // show recommendations for routing to target queue
       setTimeout(
         () =>
-          __UI.components
+          $ui.components
             .recommendationPanel({
               notesArr: recommendationNotes.route[noteType],
             })
@@ -2195,6 +2081,22 @@ let action = {
   },
 };
 
+let rightPanel = (function () {
+  const { actionPanel, strikePanel, approveNotesPanel } = $ui.components;
+
+  let container = $utils.strToNode(
+    `<div class="superuser-panel" style="display: flex; flex-direction: column;justify-content: start; gap: 1rem; padding: 3rem 0 10rem 0;"></div>`
+  );
+  const elemsArr = [
+    actionPanel().element,
+    strikePanel().element,
+    approveNotesPanel().element,
+  ];
+  elemsArr.forEach((elem) => container.appendChild(elem));
+
+  return container;
+})();
+
 if ($config.SU) {
   document.onkeypress = (e) => {
     e = e || window.event;
@@ -2260,6 +2162,45 @@ if ($config.SU) {
         break;
     }
   };
+}
+
+function $main() {
+  // Event Listeners & Notifications
+  window.addEventListener('message', function (event) {
+    const { click, sendNotification, removeLock } = $utils;
+    const notFocused = () => !document.hasFocus();
+
+    // New video, send notification if not focused
+    if (event.data.name === 'HOST_ALLOCATED') {
+      notFocused() && sendNotification(`New item 👀`);
+
+      $utils.setFrequentlyUsedPolicies();
+      removeLock();
+
+      // click reviews tab
+      setTimeout(() => {
+        log("[i] Click 'My Reviews Tab'");
+        click.element('mwc-tab', {
+          label: '"My Reviews (0)"',
+        });
+        click.element('mwc-tab', {
+          label: '"My Reviews"',
+        });
+      }, 1500);
+    }
+
+    // Submitted video, send notification
+    if (event.data.name === 'APP_REVIEW_COMPLETED' && notFocused()) {
+      sendNotification(
+        `✅ Submitted at ${new Date().toJSON().split('T')[1].slice(0, 8)}`
+      );
+
+      // removeLock();
+    }
+  });
+
+  // TIMERS
+  if (!$timers.DISPLAY_STOPWATCH || !$timers.ACTION_PANEL) $ui.render();
 }
 
 $main();
