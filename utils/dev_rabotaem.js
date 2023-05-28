@@ -6,6 +6,44 @@ function log(...args) {
   if ($config.showLogs) console.log(`%c${args}`, 'padding-left: 4px');
 }
 
+function expandTranscriptContainer() {
+  try {
+    let videoContextContainer = shadowDOMSearch('.video-context-section')?.[0];
+    let videoContextPanel = shadowDOMSearch('yurt-video-context-panel')?.[0];
+    let transcriptContainer = shadowDOMSearch(
+      '.transcript-container.transcript-container-auto-scroll-disable-fab-padding'
+    )[0];
+
+    [videoContextContainer, videoContextPanel].forEach((elem) => {
+      elem.style.height = '700px';
+      elem.style.width = '700px';
+    });
+
+    transcriptContainer.style.height = '700px';
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+function highlighter(elem) {
+  elem.style.color = 'aqua';
+  elem.style.backgroundColor = 'red';
+  elem.style.border = '1px solid green';
+}
+
+function filterTranscript(keywordsArr = []) {
+  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
+
+  let filteredWords = transcriptNodesArr.filter((wordSpan) =>
+    keywordsArr.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    )
+  );
+
+  filteredWords.forEach((word) => highlighter(word));
+  return filteredWords;
+}
+
 let selectedVEGroup;
 let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
 
@@ -1060,7 +1098,7 @@ let $utils = {
   },
 };
 
-$lib = {
+let $lib = {
   changeFavIcon(icon) {
     let currentIcon = document.querySelector("link[rel~='icon']");
     currentIcon.href = icon ? icon : 'https://www.google.com/favicon.ico';
