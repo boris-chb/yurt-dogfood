@@ -1,10 +1,7 @@
 try {
   $utils.clearTimers();
 } catch (e) {}
-
-function log(...args) {
-  if ($config.showLogs) console.log(`%c${args}`, 'padding-left: 4px');
-}
+let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
 
 function expandTranscriptContainer() {
   try {
@@ -19,7 +16,7 @@ function expandTranscriptContainer() {
       elem.style.width = '700px';
     });
 
-    transcriptContainer.style.height = '700px';
+    transcriptContainer.style.height = '600px';
   } catch (e) {
     console.log(e);
   }
@@ -30,6 +27,33 @@ function highlighter(elem) {
   elem.style.backgroundColor = 'red';
   elem.style.border = '1px solid green';
 }
+
+let uiFactory = {
+  createButton(label, onClick) {
+    let btn = this.strToNode(
+      `<tcs-button spec="flat-primary">${label}</tcs-button>`
+    );
+    btn.onclick = onClick;
+    return btn;
+  },
+  strToNode(str) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = str;
+    if (tmp.childNodes.length < 2) {
+      return tmp.childNodes[0];
+    }
+    return tmp.childNodes;
+  },
+
+  get filterControls() {
+    return shadowDOMSearch('.filter-controls-on')?.[0];
+  },
+  get rightSidebar() {
+    return shadowDOMSearch(
+      'yurt-core-decision-annotation-tabs > div:nth-child(1)'
+    )?.[0];
+  },
+};
 
 function filterTranscript(keywordsArr = []) {
   let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
@@ -45,24 +69,6 @@ function filterTranscript(keywordsArr = []) {
 }
 
 let selectedVEGroup;
-let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
-
-let __veGroups = {
-  alq: 'al_qaida_aq_including',
-  hezbollah: 'hizballah_political_and_militant_organizations',
-  isis: 'islamic_state_of_iraq',
-  vnsa: 'violent_nonstate_actor',
-  ira: 'irish_republican_army',
-  lte: 'liberation_tigers_of_tamil',
-  hamas: 'harakat_al_muqawamah_al_islamiyyah',
-  taliban: 'tehrike_taliban_pakistan_ttp',
-  pkk: 'partiya_karkeren_kurdistani_pkk',
-  bla: 'baluchistan_liberation_army_bla',
-  osama: 'osama_bin_laden',
-  wagner: 'wagner_pmc',
-  unknown: 'unknown',
-  ik: 'imarat_kavkaz_ik_aka',
-};
 
 let $config = {
   SU: true,
@@ -76,141 +82,171 @@ let $config = {
   showLogs: true,
 };
 
-let $const = {
-  filterKeywords: [
-    'чвк',
-    'вагнер',
-    'пригожин',
-    'prigozhin',
-    'wagner',
-    'pmc',
-    'арбалет',
-  ],
-  frequentlyUsedPolicies: [
-    {
-      id: '3044',
-      description: 'Account solely dedicated to FTO/extremism',
-      tags: [
-        'FTO',
-        'ISIS',
-        'Al-Qaeda',
-        'recruiting, incitement, fund raising, hostage channel dedicated',
-        'professional',
-      ],
-      policyVertical: 'VIOLENT_EXTREMISM',
-      actionCategorySummary: 'ACTION_REMOVE',
-    },
-    {
-      id: '3039',
-      description:
-        'Known Violent Extremist Organization depicting or promoting violence',
-      tags: [
-        'FTO',
-        'Al-Qaeda',
-        'Gang',
-        'hostage',
-        'promoting',
-        'violence',
-        'recruitment',
-        'soliciting funding',
-      ],
-      policyVertical: 'VIOLENT_EXTREMISM',
-      actionCategorySummary: 'ACTION_REMOVE',
-    },
-    {
-      id: '3065',
-      description:
-        'Content produced by or glorifying known Violent Extremist Organizations',
-      tags: ['ISIS', 'Al-Qaeda', 'gaming', 'song', 'VE group', 'violence'],
-      policyVertical: 'VIOLENT_EXTREMISM',
-      actionCategorySummary: 'ACTION_REMOVE',
-    },
-    {
-      id: '5013',
-      description:
-        'Low EDSA incitement to violence, FTO, ultra graphic violence',
-      tags: [
-        'Low EDSA',
-        'four corners',
-        'FTO',
-        'incitement to violence, ultra graphic violence',
-      ],
-      policyVertical: 'VIOLENT_EXTREMISM',
-      actionCategorySummary: 'ACTION_RESTRICT',
-    },
-    {
-      id: '6120',
-      description:
-        'Perpetrator-filmed footage where weapons, injured bodies, or violence is in frame or heard in audio uploaded on or after 6/15/2020',
-      tags: ['perpetrator-filmed', 'violent extremism', 'weapon'],
-      policyVertical: 'VIOLENT_EXTREMISM',
-      actionCategorySummary: 'ACTION_REMOVE',
-    },
-    {
-      id: '9008',
-      description: 'Approve',
-      tags: ['approve'],
-      policyVertical: 'APPROVE',
-      actionCategorySummary: 'ACTION_APPROVE',
-    },
-  ],
-  strikeAnswers: {
-    song: {
-      abuse_location: {
-        listItem: { value: 'audio' },
-        checklist: { value: 'audio_abusive' },
+let $const = (() => {
+  let veGroups = {
+    alq: 'al_qaida_aq_including',
+    hezbollah: 'hizballah_political_and_militant_organizations',
+    isis: 'islamic_state_of_iraq',
+    vnsa: 'violent_nonstate_actor',
+    ira: 'irish_republican_army',
+    lte: 'liberation_tigers_of_tamil',
+    hamas: 'harakat_al_muqawamah_al_islamiyyah',
+    taliban: 'tehrike_taliban_pakistan_ttp',
+    pkk: 'partiya_karkeren_kurdistani_pkk',
+    bla: 'baluchistan_liberation_army_bla',
+    osama: 'osama_bin_laden',
+    wagner: 'wagner_pmc',
+    unknown: 'unknown',
+    ik: 'imarat_kavkaz_ik_aka',
+  };
+
+  return {
+    veGroups,
+    filterKeywords: [
+      'чвк',
+      'вагнер',
+      'пригожин',
+      'prigozhin',
+      'wagner',
+      'pmc',
+      'арбалет',
+    ],
+    violativeWords: [
+      'пидор',
+      'пидар',
+      'хохол',
+      'петух',
+      'петушара',
+      'вагнер',
+      'арбалеты',
+    ],
+
+    strikeAnswers: {
+      song: {
+        abuse_location: {
+          listItem: { value: 'audio' },
+          checklist: { value: 'audio_abusive' },
+        },
+        applicable_ve_group: {
+          value: veGroups.wagner,
+        },
+        act_type: { value: 'glorification_terrorism' },
+        audio_features: { value: 'song' },
+        audio_segment: true,
+        confidence_level: { value: 'very_confident' },
       },
-      applicable_ve_group: {
-        value: __veGroups.wagner,
+      speech: {
+        abuse_location: {
+          listItem: { value: 'audio' },
+          checklist: { value: 'audio_abusive' },
+        },
+        applicable_ve_group: {
+          value: veGroups.wagner,
+        },
+        act_type: { value: 'glorification_terrorism' },
+        audio_features: { value: 'speech' },
+        audio_segment: true,
+        confidence_level: { value: 'very_confident' },
       },
-      act_type: { value: 'glorification_terrorism' },
-      audio_features: { value: 'song' },
-      audio_segment: true,
-      confidence_level: { value: 'very_confident' },
-    },
-    speech: {
-      abuse_location: {
-        listItem: { value: 'audio' },
-        checklist: { value: 'audio_abusive' },
+      video: {
+        abuse_location: {
+          listItem: { value: 'video' },
+          checklist: { value: 'video_abusive' },
+        },
+        applicable_ve_group: {
+          value: veGroups.wagner,
+        },
+        act_type: { value: 'glorification_terrorism' },
+        video_features: [{ value: 've_logo' }],
+        video_type: { value: 'compilation' },
+        video_contents: [{ value: 'other' }],
+        video_segment: true,
+        confidence_level: { value: 'very_confident' },
       },
-      applicable_ve_group: {
-        value: __veGroups.wagner,
+    },
+    is: {
+      autosubmit() {
+        return shadowDOMSearch('mwc-checkbox[value="autoreload-page"]')?.[0]
+          ?.checked;
       },
-      act_type: { value: 'glorification_terrorism' },
-      audio_features: { value: 'speech' },
-      audio_segment: true,
-      confidence_level: { value: 'very_confident' },
-    },
-    video: {
-      abuse_location: {
-        listItem: { value: 'video' },
-        checklist: { value: 'video_abusive' },
+      readyForSubmit() {
+        return shadowDOMSearch('yurt-core-decision-submit-panel')?.[0]
+          ?.readyForSubmit;
       },
-      applicable_ve_group: {
-        value: __veGroups.wagner,
+      queue(qName) {
+        return $utils.get.queue.name()?.includes(qName);
       },
-      act_type: { value: 'glorification_terrorism' },
-      video_features: [{ value: 've_logo' }],
-      video_type: { value: 'compilation' },
-      video_contents: [{ value: 'other' }],
-      video_segment: true,
-      confidence_level: { value: 'very_confident' },
     },
-  },
-  is: {
-    autosubmit() {
-      return shadowDOMSearch('mwc-checkbox[value="autoreload-page"]')?.[0]
-        ?.checked;
-    },
-    readyForSubmit() {
-      return shadowDOMSearch('yurt-core-decision-submit-panel')?.[0]
-        ?.readyForSubmit;
-    },
-    queue(qName) {
-      return $utils.get.queue.name()?.includes(qName);
-    },
-  },
-};
+    frequentlyUsedPolicies: [
+      {
+        id: '3044',
+        description: 'Account solely dedicated to FTO/extremism',
+        tags: [
+          'FTO',
+          'ISIS',
+          'Al-Qaeda',
+          'recruiting, incitement, fund raising, hostage channel dedicated',
+          'professional',
+        ],
+        policyVertical: 'VIOLENT_EXTREMISM',
+        actionCategorySummary: 'ACTION_REMOVE',
+      },
+      {
+        id: '3039',
+        description:
+          'Known Violent Extremist Organization depicting or promoting violence',
+        tags: [
+          'FTO',
+          'Al-Qaeda',
+          'Gang',
+          'hostage',
+          'promoting',
+          'violence',
+          'recruitment',
+          'soliciting funding',
+        ],
+        policyVertical: 'VIOLENT_EXTREMISM',
+        actionCategorySummary: 'ACTION_REMOVE',
+      },
+      {
+        id: '3065',
+        description:
+          'Content produced by or glorifying known Violent Extremist Organizations',
+        tags: ['ISIS', 'Al-Qaeda', 'gaming', 'song', 'VE group', 'violence'],
+        policyVertical: 'VIOLENT_EXTREMISM',
+        actionCategorySummary: 'ACTION_REMOVE',
+      },
+      {
+        id: '5013',
+        description:
+          'Low EDSA incitement to violence, FTO, ultra graphic violence',
+        tags: [
+          'Low EDSA',
+          'four corners',
+          'FTO',
+          'incitement to violence, ultra graphic violence',
+        ],
+        policyVertical: 'VIOLENT_EXTREMISM',
+        actionCategorySummary: 'ACTION_RESTRICT',
+      },
+      {
+        id: '6120',
+        description:
+          'Perpetrator-filmed footage where weapons, injured bodies, or violence is in frame or heard in audio uploaded on or after 6/15/2020',
+        tags: ['perpetrator-filmed', 'violent extremism', 'weapon'],
+        policyVertical: 'VIOLENT_EXTREMISM',
+        actionCategorySummary: 'ACTION_REMOVE',
+      },
+      {
+        id: '9008',
+        description: 'Approve',
+        tags: ['approve'],
+        policyVertical: 'APPROVE',
+        actionCategorySummary: 'ACTION_APPROVE',
+      },
+    ],
+  };
+})();
 
 function shadowDOMSearch(query) {
   var myElement;
@@ -466,7 +502,7 @@ let $utils = {
             )
           : undefined;
 
-        log(`[🔍] list-item[${filterKey}=${filterValue}]`);
+        console.log(`[🔍] list-item[${filterKey}=${filterValue}]`);
 
         btn = foundBtn;
       } else {
@@ -483,7 +519,8 @@ let $utils = {
       if (btnMissingOrDisabled && retries) {
         // btn not found, try again
         retries--;
-        retries % 10 === 0 && log(retries, `[♻] Looking for ${queryStr}`);
+        retries % 10 === 0 &&
+          console.log(retries, `[♻] Looking for ${queryStr}`);
         setTimeout(
           () => $utils.click.element(queryStr, null, retries),
           $config.CLICK_BUTTON_INTERVAL_MS
@@ -519,7 +556,7 @@ let $utils = {
       try {
         item?.click();
       } catch (e) {
-        log(e.stack);
+        console.log(e.stack);
       }
     },
     checkbox(listArgs) {
@@ -559,7 +596,7 @@ let $utils = {
           ?.map((item) => `${item?.id} - ${item?.reason}`)
           .join('\n');
       } catch (e) {
-        log(arguments.callee.name, e.stack);
+        console.log(arguments.callee.name, e.stack);
       }
     },
     getCurrentTimeStr() {
@@ -664,7 +701,7 @@ let $utils = {
           listItem: { value: 'video' },
           checklist: { value: 'video_abusive' },
         },
-        applicable_ve_group: { value: __veGroups.unknown },
+        applicable_ve_group: { value: $const.veGroups.unknown },
         act_type: { value: 'glorification_terrorism' },
         video_features: 'todo',
         video_contents: [{ value: 'other' }],
@@ -688,10 +725,10 @@ let $utils = {
       let currentQuestions = shadowDOMSearch(
         'yurt-core-label-questionnaire-question-type-mapper'
       )?.[0]?.currentQuestions;
-      log('current questions:', currentQuestions);
+      console.log('current questions:', currentQuestions);
 
       if (!currentQuestions) {
-        log('[?] Could not find questionnaire.currentQuestion');
+        console.log('[?] Could not find questionnaire.currentQuestion');
         return;
       }
 
@@ -700,13 +737,13 @@ let $utils = {
       if (currentQuestions?.length > 1) {
         // answer all questions:
         currentQuestions.forEach((subquestion) => {
-          log('[i] subq', subquestion);
+          console.log('[i] subq', subquestion);
           let lastElementIndex = subquestion.id.split('/').length - 1;
           let questionId = subquestion.id.split('/')[lastElementIndex];
 
           if (questionId === 'abuse_location') {
-            log(abuse_location.listItem);
-            log(abuse_location.checklist);
+            console.log(abuse_location.listItem);
+            console.log(abuse_location.checklist);
             listItem(abuse_location.listItem);
             checklist(abuse_location.checklist);
             clickNext();
@@ -720,7 +757,7 @@ let $utils = {
             let featured_person = shadowDOMSearch(
               `mwc-checkbox[value=featured_person]`
             )[0];
-            log(featured_person);
+            console.log(featured_person);
             featured_person.click();
           } else if (questionId === 'video_contents') {
             video_contents.forEach((arg) => checkbox(arg));
@@ -745,7 +782,7 @@ let $utils = {
             listItem(confidence_level);
           }
 
-          log('✅ SUBQuestion Answered: ', questionId);
+          console.log('✅ SUBQuestion Answered: ', questionId);
         });
       }
 
@@ -754,8 +791,8 @@ let $utils = {
       let questionId = currentQuestions?.[0].id.split('/')[lastElementIndex];
 
       if (questionId === 'abuse_location') {
-        log(abuse_location.listItem);
-        log(abuse_location.checklist);
+        console.log(abuse_location.listItem);
+        console.log(abuse_location.checklist);
         listItem(abuse_location.listItem);
         checklist(abuse_location.checklist);
         clickNext();
@@ -790,11 +827,11 @@ let $utils = {
         listItem(confidence_level);
       }
 
-      log('✅ Question Answered: ', questionId);
+      console.log('✅ Question Answered: ', questionId);
 
       if (currentQuestions?.deferTraversal) {
         $utils.clickDone();
-        log('Successfully submitted questioonaire');
+        console.log('Successfully submitted questioonaire');
       }
     },
     getQuestionnaire() {
@@ -877,7 +914,7 @@ let $utils = {
     try {
       parent?.appendChild(node);
     } catch (e) {
-      log(arguments.callee.name, e.stack);
+      console.log(arguments.callee.name, e.stack);
     }
   },
   strToNode(str) {
@@ -975,7 +1012,7 @@ let $utils = {
   setTimer(vremya, reload = $const.is.autosubmit()) {
     // clean old submit timer
     if ($timers.SUBMIT_ID) {
-      log(`Cleaning up timerId: ${$timers.SUBMIT_ID}.`);
+      console.log(`Cleaning up timerId: ${$timers.SUBMIT_ID}.`);
       clearTimeout($timers.SUBMIT_ID);
       $timers.SUBMIT_ID = null;
       console.table($timers);
@@ -983,7 +1020,7 @@ let $utils = {
 
     // clean old reload timer
     if ($timers.RELOAD_ID) {
-      log(`[i] Cleaning up reloadId: ${$timers.RELOAD_ID}.`);
+      console.log(`[i] Cleaning up reloadId: ${$timers.RELOAD_ID}.`);
       clearTimeout($timers.RELOAD_ID);
       $timers.RELOAD_ID = null;
     }
@@ -997,7 +1034,7 @@ let $utils = {
       vremya * 60 * 1000
     );
 
-    log(
+    console.log(
       `⌚ ✅ Submit in ${vremya} minutes, at ${new Date(
         Date.now() + vremya * 60 * 1000
       )
@@ -1007,7 +1044,7 @@ let $utils = {
     );
 
     if (reload) {
-      log(`🔃 ... with reload.`);
+      console.log(`🔃 ... with reload.`);
 
       $timers.RELOAD_ID = setTimeout(
         window.location.reload.bind(window.location),
@@ -1037,7 +1074,7 @@ let $utils = {
         'yurt-video-decision-panel-v2'
       )[0].frequentlyUsedPolicies = $const.frequentlyUsedPolicies;
     } catch (e) {
-      log(arguments.callee.name, e.stack);
+      console.log(arguments.callee.name, e.stack);
     }
   },
 
@@ -1063,7 +1100,7 @@ let $utils = {
       lock.lockTimeoutSec = 1200;
       lock.secondsToExpiry = 1200;
     }
-    log(
+    console.log(
       `🔐LOCK: ${$utils.formatTime(
         shadowDOMSearch('yurt-review-activity-dialog')[0].secondsToExpiry
       )}`
@@ -1084,7 +1121,7 @@ let $utils = {
       secondsTotal = parseInt(m) * 60 + parseInt(s);
     }
 
-    log(secondsTotal);
+    console.log(secondsTotal);
 
     videoRoot.playerApi.seekTo(secondsTotal);
   },
@@ -1092,7 +1129,7 @@ let $utils = {
     Object.keys($timers).forEach((timer) => {
       clearTimeout($timers[timer]);
       clearInterval($timers[timer]);
-      log(`[🧹] removed ${timer} = ${$timers[timer]}`);
+      console.log(`[🧹] removed ${timer} = ${$timers[timer]}`);
       $timers.timer = 0;
     });
   },
@@ -1141,7 +1178,7 @@ function answerQuestion(question, answers) {
   let lastElementIndex = question.id.split('/').length - 1;
   let questionId = question.id.split('/')[lastElementIndex];
 
-  log(`[❔] Answering ${questionId}.`);
+  console.log(`[❔] Answering ${questionId}.`);
 
   // Video Strike
   if (questionId === 'abuse_location') {
@@ -1179,11 +1216,11 @@ function answerQuestion(question, answers) {
   // Click Next after answering each question, just to be sure
   clickNext();
 
-  log(`[✅] Question Answered: ${questionId}`);
+  console.log(`[✅] Question Answered: ${questionId}`);
   if (question.deferTraversal) {
     clickDone();
     clearInterval($timers.STRIKE_ID);
-    log('[✅] Questionnaire Submitted');
+    console.log('[✅] Questionnaire Submitted');
     // render notes recommendations for strike with chosen policy id
 
     const chosenPolicyId = shadowDOMSearch('yurt-core-questionnaire')?.[0]
@@ -1219,7 +1256,7 @@ function answerQuestionnaire(answerArgs) {
   try {
     answerQuestion(currentQuestions[0], answerArgs);
   } catch (e) {
-    log(arguments.callee.name, e.stack);
+    console.log(arguments.callee.name, e.stack);
   } finally {
     return;
   }
@@ -1229,7 +1266,7 @@ function clearTimers() {
   Object.keys($timers).forEach((timer) => {
     clearTimeout($timers[timer]);
     clearInterval($timers[timer]);
-    log(`[🧹] removed ${timer} = ${$timers[timer]}`);
+    console.log(`[🧹] removed ${timer} = ${$timers[timer]}`);
     $timers.timer = 0;
   });
 }
@@ -1240,15 +1277,15 @@ let $props = {
       label: 'Select VE Group',
       value: 'strike_ve_group_dropdown',
       options: [
-        { value: __veGroups.wagner, label: 'Wagner PMC' },
-        { value: __veGroups.alq, label: 'Al Qaeda' },
-        { value: __veGroups.isis, label: 'ISIS' },
-        { value: __veGroups.hamas, label: 'Hamas' },
-        { value: __veGroups.hezbollah, label: 'Hezbollah' },
-        { value: __veGroups.ira, label: 'IRA' },
-        { value: __veGroups.lte, label: 'LTTE' },
-        { value: __veGroups.unknown, label: 'UNKNOWN' },
-        { value: __veGroups.vnsa, label: 'VNSA' },
+        { value: $const.veGroups.wagner, label: 'Wagner PMC' },
+        { value: $const.veGroups.alq, label: 'Al Qaeda' },
+        { value: $const.veGroups.isis, label: 'ISIS' },
+        { value: $const.veGroups.hamas, label: 'Hamas' },
+        { value: $const.veGroups.hezbollah, label: 'Hezbollah' },
+        { value: $const.veGroups.ira, label: 'IRA' },
+        { value: $const.veGroups.lte, label: 'LTTE' },
+        { value: $const.veGroups.unknown, label: 'UNKNOWN' },
+        { value: $const.veGroups.vnsa, label: 'VNSA' },
       ],
     },
     route: {
@@ -1471,9 +1508,8 @@ let $props = {
   },
 };
 
-let $ui = {
-  // Atomic Design System for creating components
-  atoms: {
+let $ui = (() => {
+  let atoms = {
     card({ children }) {
       let elem = $utils.strToNode(`<yurt-core-card></yurt-core-card>`);
 
@@ -1515,294 +1551,304 @@ let $ui = {
 
       return node;
     },
-  },
-  components: {
-    // Ready UI Components
+  };
 
-    btns: () => {
-      const { button: createButton } = $ui.atoms;
-      const { button: btnProps } = $props;
+  return {
+    // Atomic Design System for creating components
 
-      return {
-        approve: btnProps.approve.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-        strike: btnProps.strike.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-        route: btnProps.route.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-        comments: btnProps.comments.map(({ text, onClick }) =>
-          createButton({ text, onClick })
-        ),
-      };
-    },
-    actionPanel: () => {
-      let wrapperDiv = $utils.strToNode(
-        `<div style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
-      );
+    components: {
+      // Ready UI Components
 
-      let routeDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
-      let approveDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
+      get btns() {
+        const { button: createButton } = atoms;
+        const { button: btnProps } = $props;
 
-      approveDiv.replaceChildren(...$ui.components.btns().approve);
-      routeDiv.replaceChildren(...$ui.components.btns().route);
-
-      wrapperDiv.replaceChildren(routeDiv, approveDiv);
-      wrapperDiv.setAttribute('class', 'action-panel');
-
-      let element = $ui.atoms.card({ children: wrapperDiv });
-
-      // element.style.marginTop = '300px';
-
-      return {
-        element,
-        render() {
-          if (shadowDOMSearch('.action-panel')?.[0]) return;
-          $utils.appendNode(element);
-        },
-      };
-    },
-    commentsPanel: () => {
-      commentsPanelWrapper = $utils.strToNode(
-        `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
-      );
-
-      commentsPanelWrapper.replaceChildren(...$ui.components.btns().comments);
-
-      let element = $ui.atoms.card({ children: commentsPanelWrapper });
-
-      return {
-        element,
-        render() {
-          // return if there is a panel already
-          if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
-
-          $utils.appendNode(element);
-        },
-      };
-    },
-    strikePanel: () => {
-      const { dropdown: createDropdown } = $ui.atoms;
-      const { card: createCard } = $ui.atoms;
-
-      const dropdownMenu = createDropdown($props.dropdown.strike);
-      const strikeBtnContainer = $utils.strToNode(
-        `<div class="strike-panel container"></div>`
-      );
-
-      strikeBtnContainer.replaceChildren(
-        dropdownMenu,
-        ...$ui.components.btns().strike
-      );
-
-      const element = createCard({
-        children: strikeBtnContainer,
-      });
-
-      return {
-        element,
-        render() {
-          // return if there is a panel already
-          if (shadowDOMSearch('.strike-panel')?.[0]) return;
-
-          $utils.appendNode(element);
-        },
-      };
-    },
-    stopwatchPanel() {
-      const getTimeStr = () => `${$utils.formatTime($utils.get.timeElapsed())}`;
-
-      const stopwatch = $utils.strToNode(
-        `<tcs-chip spec="tag" text=${getTimeStr()} onclick="() => $ui.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-chip>`
-      );
-
-      let parentNode = shadowDOMSearch(
-        'yurt-core-plugin-header > div > tcs-view'
-      )?.[0];
-
-      // SUPERUSER check
-      if ($config.SU) {
-        stopwatch.oncontextmenu = () => {
-          history.pushState({}, '', '#yort');
-          window.open('https://yurt.corp.google.com/#review');
+        return {
+          approve: btnProps.approve.map(({ text, onClick }) =>
+            createButton({ text, onClick })
+          ),
+          strike: btnProps.strike.map(({ text, onClick }) =>
+            createButton({ text, onClick })
+          ),
+          route: btnProps.route.map(({ text, onClick }) =>
+            createButton({ text, onClick })
+          ),
+          comments: btnProps.comments.map(({ text, onClick }) =>
+            createButton({ text, onClick })
+          ),
         };
+      },
+      get actionPanel() {
+        let wrapperDiv = $utils.strToNode(
+          `<div style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
+        );
 
-        stopwatch.onclick = () => {
-          $utils.removeLock();
-          $ui.components.stopwatchPanel().showTimers();
-          setTimeout(() => $ui.components.stopwatchPanel().showTimers(), 4000);
+        let routeDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
+        let approveDiv = $utils.strToNode(
+          `<div id="action-panel__route"></div>`
+        );
+
+        approveDiv.replaceChildren(...this.btns.approve);
+        routeDiv.replaceChildren(...this.btns.route);
+
+        wrapperDiv.replaceChildren(routeDiv, approveDiv);
+        wrapperDiv.setAttribute('class', 'action-panel');
+
+        let element = atoms.card({ children: wrapperDiv });
+
+        // element.style.marginTop = '300px';
+
+        return {
+          element,
+          render() {
+            if (shadowDOMSearch('.action-panel')?.[0]) return;
+            $utils.appendNode(element);
+          },
         };
-      }
+      },
+      get commentsPanel() {
+        commentsPanelWrapper = $utils.strToNode(
+          `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
+        );
 
-      return {
-        element: stopwatch,
-        tick() {
-          stopwatch.text = getTimeStr();
-        },
-        render() {
-          // Already exists, don't render
-          if (shadowDOMSearch('.stopwatch')?.[0]) return;
+        commentsPanelWrapper.replaceChildren(...$ui.components.btns.comments);
 
-          if ($const.is.queue('comments')) {
-            parentNode = shadowDOMSearch('tcs-text[spec=title-2]')?.[0]
-              ?.shadowRoot;
-          }
+        let element = atoms.card({ children: commentsPanelWrapper });
 
-          try {
-            parentNode.appendChild(stopwatch);
+        return {
+          element,
+          render() {
+            // return if there is a panel already
+            if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
 
-            $timers.DISPLAY_STOPWATCH = setInterval(() => {
-              this.tick();
-            }, 1000);
-          } catch (e) {
-            log('[❌] Could not append stopwatchPanel', e.stack);
-          }
-        },
-        showTimers() {
-          let existingTimers = shadowDOMSearch('.timers')?.[0];
-          if (existingTimers) {
-            existingTimers.remove();
-            return;
-          }
-          let timersWrapper = $utils.strToNode(
-            `<tcs-view class="timers container" align="center" spec="row"><tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(1, ${$const.is.autosubmit()});">1</tcs-button>
+            $utils.appendNode(element);
+          },
+        };
+      },
+      get strikePanel() {
+        const { dropdown: createDropdown } = atoms;
+        const { card: createCard } = atoms;
+
+        const dropdownMenu = createDropdown($props.dropdown.strike);
+        const strikeBtnContainer = $utils.strToNode(
+          `<div class="strike-panel container"></div>`
+        );
+
+        strikeBtnContainer.replaceChildren(
+          dropdownMenu,
+          ...$ui.components.btns.strike
+        );
+
+        const element = createCard({
+          children: strikeBtnContainer,
+        });
+
+        return {
+          element,
+          render() {
+            // return if there is a panel already
+            if (shadowDOMSearch('.strike-panel')?.[0]) return;
+
+            $utils.appendNode(element);
+          },
+        };
+      },
+      stopwatchPanel() {
+        const getTimeStr = () =>
+          `${$utils.formatTime($utils.get.timeElapsed())}`;
+
+        const stopwatch = $utils.strToNode(
+          `<tcs-chip spec="tag" text=${getTimeStr()} onclick="() => $ui.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-chip>`
+        );
+
+        let parentNode = shadowDOMSearch(
+          'yurt-core-plugin-header > div > tcs-view'
+        )?.[0];
+
+        // SUPERUSER check
+        if ($config.SU) {
+          stopwatch.oncontextmenu = () => {
+            history.pushState({}, '', '#yort');
+            window.open('https://yurt.corp.google.com/#review');
+          };
+
+          stopwatch.onclick = () => {
+            $utils.removeLock();
+            $ui.components.stopwatchPanel().showTimers();
+            setTimeout(
+              () => $ui.components.stopwatchPanel().showTimers(),
+              4000
+            );
+          };
+        }
+
+        return {
+          element: stopwatch,
+          tick() {
+            stopwatch.text = getTimeStr();
+          },
+          render() {
+            // Already exists, don't render
+            if (shadowDOMSearch('.stopwatch')?.[0]) return;
+
+            if ($const.is.queue('comments')) {
+              parentNode = shadowDOMSearch('tcs-text[spec=title-2]')?.[0]
+                ?.shadowRoot;
+            }
+
+            try {
+              parentNode.appendChild(stopwatch);
+
+              $timers.DISPLAY_STOPWATCH = setInterval(() => {
+                this.tick();
+              }, 1000);
+            } catch (e) {
+              console.log('[❌] Could not append stopwatchPanel', e.stack);
+            }
+          },
+          showTimers() {
+            let existingTimers = shadowDOMSearch('.timers')?.[0];
+            if (existingTimers) {
+              existingTimers.remove();
+              return;
+            }
+            let timersWrapper = $utils.strToNode(
+              `<tcs-view class="timers container" align="center" spec="row"><tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(1, ${$const.is.autosubmit()});">1</tcs-button>
                     <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(2, ${$const.is.autosubmit()});">2</tcs-button>
                     <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(3, ${$const.is.autosubmit()});">3</tcs-button>
                     <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(4, ${$const.is.autosubmit()});">4</tcs-button>
                     <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(5, ${$const.is.autosubmit()});">5</tcs-button>
                     <mwc-checkbox value="autoreload-page"></mwc-checkbox></tcs-view>`
-          );
-          parentNode.appendChild(timersWrapper);
-        },
-      };
-    },
-    approveNotesPanel() {
-      const container = $utils.strToNode(
-        `<div class="approve-notes container"></div>`
-      );
-
-      let panel = $utils.strToNode(
-        `<mwc-list>${recommendationNotes.approve
-          .map(
-            (note) =>
-              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><tcs-text>${
-                note.title
-              }</tcs-text><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
-          )
-          .join('')}</mwc-list>`
-      );
-
-      // add onclicks
-      [...panel.childNodes].forEach(
-        (noteItem) =>
-          (noteItem.onclick = () => {
-            // APPROVE NOTE RECOMMENDATION
-            $utils.setNote(noteItem.value);
-            console.log('note', noteItem.value);
-            shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
-            $utils.clickSave();
-          })
-      );
-
-      container.appendChild(panel);
-
-      return {
-        element: container,
-        render() {
-          if (shadowDOMSearch('.approve-notes')) return;
-          $utils.appendNode(container);
-        },
-      };
-    },
-    recommendationPanel({ notesArr }) {
-      // don't recommend in comments FOR NOW
-      if ($const.is.queue('comments')) return;
-
-      let recommendationList = $utils.strToNode(
-        `<mwc-list>${notesArr
-          .map(
-            (note) =>
-              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
-                note.title
-              }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
-          )
-          .join('')}</mwc-list>`
-      );
-
-      [...recommendationList.childNodes].forEach(
-        (node) =>
-          (node.onclick = () => {
-            action.video.steps.addNote(node.value);
-          })
-      );
-
-      return {
-        element: recommendationList,
-        render() {
-          // find parent
-          const parent =
-            shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
-            shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
-              ?.shadowRoot;
-
-          parent?.appendChild(recommendationList);
-        },
-      };
-    },
-    configPanel() {
-      let configPanel = $utils.strToNode(
-        `<tcs-view class="config-panel" spacing="small"></tcs-view>`
-      );
-      let noteSwitch = $utils.strToNode(
-        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text></div>`
-      );
-
-      let autoSubmit = $utils.strToNode(
-        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="Submit?" spec="body" texttype="default"></tcs-text></div>`
-      );
-
-      configPanel.replaceChildren(
-        ...noteSwitch.children,
-        ...autoSubmit.children
-      );
-      return configPanel;
-    },
-  },
-
-  // methods
-  render() {
-    const { commentsPanel, stopwatchPanel } = this.components;
-
-    try {
-      // render UI components every X seconds using setInterval
-      if (!$timers.STOPWATCH_ID) {
-        if (shadowDOMSearch('.stopwatch')) return;
-        $timers.STOPWATCH_ID = setInterval(
-          () => stopwatchPanel().render(),
-          $config.FUNCTION_CALL_RETRY_MS
+            );
+            parentNode.appendChild(timersWrapper);
+          },
+        };
+      },
+      approveNotesPanel() {
+        const container = $utils.strToNode(
+          `<div class="approve-notes container"></div>`
         );
-      }
 
-      if ($const.is.queue('comments')) {
-        commentsPanel().render();
-        return;
-      }
+        let panel = $utils.strToNode(
+          `<mwc-list>${recommendationNotes.approve
+            .map(
+              (note) =>
+                `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><tcs-text>${
+                  note.title
+                }</tcs-text><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
+            )
+            .join('')}</mwc-list>`
+        );
 
-      if (!$timers.RIGHT_PANEL_ID) {
-        $timers.RIGHT_PANEL_ID = setInterval(() => {
-          if (shadowDOMSearch('.superuser-panel')) return;
-          $utils.appendNode(rightPanel);
-        }, $config.FUNCTION_CALL_RETRY_MS);
+        // add onclicks
+        [...panel.childNodes].forEach(
+          (noteItem) =>
+            (noteItem.onclick = () => {
+              // APPROVE NOTE RECOMMENDATION
+              $utils.setNote(noteItem.value);
+              console.log('note', noteItem.value);
+              shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
+              $utils.clickSave();
+            })
+        );
+
+        container.appendChild(panel);
+
+        return {
+          element: container,
+          render() {
+            if (shadowDOMSearch('.approve-notes')) return;
+            $utils.appendNode(container);
+          },
+        };
+      },
+      recommendationPanel({ notesArr }) {
+        // don't recommend in comments FOR NOW
+        if ($const.is.queue('comments')) return;
+
+        let recommendationList = $utils.strToNode(
+          `<mwc-list>${notesArr
+            .map(
+              (note) =>
+                `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
+                  note.title
+                }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
+            )
+            .join('')}</mwc-list>`
+        );
+
+        [...recommendationList.childNodes].forEach(
+          (node) =>
+            (node.onclick = () => {
+              action.video.steps.addNote(node.value);
+            })
+        );
+
+        return {
+          element: recommendationList,
+          render() {
+            // find parent
+            const parent =
+              shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
+              shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
+                ?.shadowRoot;
+
+            parent?.appendChild(recommendationList);
+          },
+        };
+      },
+      configPanel() {
+        let configPanel = $utils.strToNode(
+          `<tcs-view class="config-panel" spacing="small"></tcs-view>`
+        );
+        let noteSwitch = $utils.strToNode(
+          `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text></div>`
+        );
+
+        let autoSubmit = $utils.strToNode(
+          `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="Submit?" spec="body" texttype="default"></tcs-text></div>`
+        );
+
+        configPanel.replaceChildren(
+          ...noteSwitch.children,
+          ...autoSubmit.children
+        );
+        return configPanel;
+      },
+    },
+    // methods
+    render() {
+      const { commentsPanel, stopwatchPanel } = this.components;
+
+      try {
+        // render UI components every X seconds using setInterval
+        if (!$timers.STOPWATCH_ID) {
+          if (shadowDOMSearch('.stopwatch')) return;
+          $timers.STOPWATCH_ID = setInterval(
+            () => stopwatchPanel().render(),
+            $config.FUNCTION_CALL_RETRY_MS
+          );
+        }
+
+        if ($const.is.queue('comments')) {
+          commentsPanel.render();
+          return;
+        }
+
+        if (!$timers.RIGHT_PANEL_ID) {
+          $timers.RIGHT_PANEL_ID = setInterval(() => {
+            if (shadowDOMSearch('.superuser-panel')) return;
+            $utils.appendNode(rightPanel);
+          }, $config.FUNCTION_CALL_RETRY_MS);
+        }
+      } catch (e) {
+        if ($config.showLogs) {
+          console.log('[❌] :: UI.render() :: Could not append action panel.');
+        }
       }
-    } catch (e) {
-      if ($config.showLogs) {
-        log('[❌] :: UI.render() :: Could not append action panel.');
-      }
-    }
-  },
-};
+    },
+  };
+})();
 
 let $timers = {
   SUBMIT_ID: null,
@@ -1831,7 +1877,7 @@ let action = {
         );
 
         if (!policiesNodeList) {
-          // log('[recursion] looking for 9008 tag');
+          //console.log('[recursion] looking for 9008 tag');
           // FIX
           setTimeout(
             () => action.video.steps.selectPolicy(policyId),
@@ -1845,7 +1891,7 @@ let action = {
           (p) => p['policy']?.['id'] === policyId
         )?.[0];
 
-        // log('approvePolicyTag');
+        //console.log('approvePolicyTag');
         policyElement?.click();
       },
       selectLanguage(language) {
@@ -1863,7 +1909,7 @@ let action = {
           return;
         }
         russian.click();
-        log('[Select Language] Clicked ', language);
+        console.log('[Select Language] Clicked ', language);
         return;
       },
       isRelatedToVE(related = 'no') {
@@ -1881,14 +1927,14 @@ let action = {
           noteInputBox.value = note;
           action.video.steps.selectTextArea();
         } catch (e) {
-          log(arguments.callee.name, e.stack);
+          console.log(arguments.callee.name, e.stack);
         }
       },
       selectTextArea() {
         let link;
         link = shadowDOMSearch('.mdc-text-field__input')[0];
 
-        // log('text area');
+        //console.log('text area');
         link && link.select();
       },
     },
@@ -1977,7 +2023,7 @@ let action = {
         $config.FUNCTION_CALL_RETRY_MS
       );
 
-      log('[i] Questionnaire Answers:', answers);
+      console.log('[i] Questionnaire Answers:', answers);
 
       if ($timers.STRIKE_ID) {
         clearInterval($timers.STRIKE_ID);
@@ -2003,23 +2049,23 @@ let action = {
           () => this.selectVEpolicy(commentPolicy);
           return;
         }
-        log('selectVEpolicy', commentPolicy);
+        console.log('selectVEpolicy', commentPolicy);
         VEpolicy.click();
       },
 
       selectActionType(actionType = 'generic_support') {
-        log('selectActionType', actionType);
+        console.log('selectActionType', actionType);
 
         $utils.click.element('mwc-radio', { value: actionType });
       },
 
       VEgroupType(veType = 've_group_type') {
-        log('VEgroupType', veType);
+        console.log('VEgroupType', veType);
         $utils.click.element('mwc-radio', { value: veType });
       },
 
       selectVEgroup(targetGroup) {
-        log('selectVEgroup', targetGroup);
+        console.log('selectVEgroup', targetGroup);
 
         const VEgroupsArr = Array.from(shadowDOMSearch('mwc-list-item'));
 
@@ -2034,27 +2080,27 @@ let action = {
 
         function getVEGroup() {
           let group = VEgroupsArr?.filter((item) => {
-            // log(item.value);
-            // log(groupsMap[targetGroup]);
-            return item.value === __veGroups[targetGroup];
+            //console.log(item.value);
+            //console.log(groupsMap[targetGroup]);
+            return item.value === $const.veGroups[targetGroup];
           })[0];
           return group;
         }
 
         let group = getVEGroup();
-        log('getVEGroup', group);
+        console.log('getVEGroup', group);
 
         group && group?.click();
       },
 
       selectRelevance(relevance = 'comment_text') {
-        log('selectRelevance', relevance);
+        console.log('selectRelevance', relevance);
 
         $utils.click.element('mwc-checkbox', { value: relevance });
       },
 
       selectStamp(stampType = 'the_whole_comment') {
-        log('selectRelevance', stampType);
+        console.log('selectRelevance', stampType);
 
         $utils.click.element('mwc-radio', { value: stampType });
       },
@@ -2125,11 +2171,13 @@ let rightPanel = (function () {
   let container = $utils.strToNode(
     `<div class="superuser-panel" style="display: flex; flex-direction: column;justify-content: start; gap: 1rem; padding: 3rem 0 10rem 0;"></div>`
   );
+
   const elemsArr = [
-    actionPanel().element,
-    strikePanel().element,
-    approveNotesPanel().element,
+    actionPanel.element,
+    strikePanel.element,
+    // approveNotesPanel().element,
   ];
+
   elemsArr.forEach((elem) => container.appendChild(elem));
 
   return container;
@@ -2145,7 +2193,7 @@ if ($config.SU) {
         break;
       // Submit Lang
       case 60 || '<':
-        log(`submit rus`);
+        console.log(`submit rus`);
         action.video.approveVideo('russian');
         break;
       // Submit agnostic
@@ -2171,13 +2219,13 @@ if ($config.SU) {
         try {
           $utils.clickSave();
         } catch (e) {
-          log('❌ Could not click Save.');
+          console.log('❌ Could not click Save.');
         }
 
         try {
           $utils.clickSubmit();
         } catch (e) {
-          log('❌ Could not click Submit.');
+          console.log('❌ Could not click Submit.');
         }
 
         break;
@@ -2202,6 +2250,43 @@ if ($config.SU) {
   };
 }
 
+function addFilterControls() {
+  let onFilterTranscript = () => {
+    setTimeout(() => filterTranscript($const.violativeWords), 1);
+  };
+
+  uiFactory.filterControls.appendChild(
+    uiFactory.createButton('Filter Transcript'),
+    onFilterTranscript
+  );
+}
+
+let onHandlers = {
+  newVideo() {
+    const { click, sendNotification, removeLock, setFrequentlyUsedPolicies } =
+      $utils;
+
+    !document.hasFocus() && sendNotification(`New item 👀`);
+
+    expandTranscriptContainer();
+    setFrequentlyUsedPolicies();
+    removeLock();
+
+    addFilterControls();
+
+    // click reviews tab
+    setTimeout(() => {
+      console.log("[i] Click 'My Reviews Tab'");
+      click.element('mwc-tab', {
+        label: '"My Reviews (0)"',
+      });
+      click.element('mwc-tab', {
+        label: '"My Reviews"',
+      });
+    }, 1500);
+  },
+};
+
 function $main() {
   // Event Listeners & Notifications
   window.addEventListener('message', function (event) {
@@ -2209,23 +2294,7 @@ function $main() {
     const notFocused = () => !document.hasFocus();
 
     // New video, send notification if not focused
-    if (event.data.name === 'HOST_ALLOCATED') {
-      notFocused() && sendNotification(`New item 👀`);
-
-      $utils.setFrequentlyUsedPolicies();
-      removeLock();
-
-      // click reviews tab
-      setTimeout(() => {
-        log("[i] Click 'My Reviews Tab'");
-        click.element('mwc-tab', {
-          label: '"My Reviews (0)"',
-        });
-        click.element('mwc-tab', {
-          label: '"My Reviews"',
-        });
-      }, 1500);
-    }
+    if (event.data.name === 'HOST_ALLOCATED') onHandlers.newVideo();
 
     // Submitted video, send notification
     if (event.data.name === 'APP_REVIEW_COMPLETED' && notFocused()) {
@@ -2238,6 +2307,8 @@ function $main() {
   });
 
   // TIMERS
+  addFilterControls();
+  expandTranscriptContainer();
   if (!$timers.DISPLAY_STOPWATCH || !$timers.ACTION_PANEL) $ui.render();
 }
 
