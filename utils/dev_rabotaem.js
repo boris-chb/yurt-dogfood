@@ -2251,13 +2251,11 @@ if ($config.SU) {
 }
 
 function addFilterControls() {
-  let onFilterTranscript = () => {
+  let onFilterTranscript = () =>
     setTimeout(() => filterTranscript($const.violativeWords), 1);
-  };
 
   uiFactory.filterControls.appendChild(
-    uiFactory.createButton('Filter Transcript'),
-    onFilterTranscript
+    uiFactory.createButton('Filter Transcript', onFilterTranscript)
   );
 }
 
