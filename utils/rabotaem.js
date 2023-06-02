@@ -71,7 +71,7 @@ function filterTranscript(keywordsArr = []) {
 let selectedVEGroup;
 
 let $config = {
-  SU: true,
+  SU: false,
   USE_KEYPRESS: false,
   COMMENTS_TIMER_MIN: 1,
   CLICK_BUTTON_RETRY: 50,
