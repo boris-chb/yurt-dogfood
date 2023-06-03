@@ -13,7 +13,7 @@ function expandTranscriptContainer() {
 
     [videoContextContainer, videoContextPanel].forEach((elem) => {
       elem.style.height = '700px';
-      elem.style.width = '700px';
+      elem.style.width = '500px';
     });
 
     transcriptContainer.style.height = '600px';
@@ -112,6 +112,7 @@ let $const = (() => {
       'арбалет',
     ],
     violativeWords: [
+      'чувака',
       'пидор',
       'пидар',
       'хохол',
@@ -119,8 +120,8 @@ let $const = (() => {
       'петушара',
       'вагнер',
       'арбалеты',
+      'москал',
     ],
-
     strikeAnswers: {
       song: {
         abuse_location: {
@@ -413,14 +414,14 @@ let recommendationNotes = {
   strike: {
     3065: [
       {
-        title: '[3065] Depictive >50%',
+        title: '[3065] Depictive >50% @',
         value: () =>
-          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism\n3065 Strike\nRussian`,
+          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism @${$utils.get.videoTimestamp()}\n3065 Strike\nRussian`,
       },
       {
         title: '[3065] Depictive+Music',
         value: () =>
-          `${selectedVEGroup} depictive content with upbeat music without EDSA or criticism\n3065 Strike\nRussian`,
+          `${selectedVEGroup} depictive content with upbeat music without EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
       {
         title: '[3065] Depictive+Music @',
@@ -430,7 +431,7 @@ let recommendationNotes = {
       {
         title: '[3065] Song/Nasheed',
         value: () =>
-          `${selectedVEGroup} glorifying song without 4C EDSA or criticism\n3065 Strike\nRussian`,
+          `${selectedVEGroup} glorifying song without 4C EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
     ],
     3039: [
@@ -442,17 +443,17 @@ let recommendationNotes = {
       {
         title: '[3039] Song',
         value: () =>
-          `${selectedVEGroup} produced song\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} produced song #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Raw reupload',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Glorification',
         value: () =>
-          `Glorification of ${selectedVEGroup}\n3039 Strike (not dedicated)\nRussian`,
+          `Glorification of ${selectedVEGroup} #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Glorification @',
@@ -464,23 +465,32 @@ let recommendationNotes = {
       {
         title: '[3044] Raw reupload',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
+      },
+      {
+        title: '[3044] Glorification',
+        value: () =>
+          `Glorification of ${selectedVEGroup} #fullvideo\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
       },
       {
         title: '[3044] Song',
         value: () =>
-          `${selectedVEGroup} produced song\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
+          `${selectedVEGroup} produced song #fullvideo\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
       },
       {
-        title: '[3044] [1] Raw reupload',
+        title: '[3044][1] Raw reupload',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
       },
-
       {
-        title: '[3044] [1] Song',
+        title: '[3044][1] Glorification',
         value: () =>
-          `${selectedVEGroup} produced song\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+          `Glorification of ${selectedVEGroup} #fullvideo\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+      },
+      {
+        title: '[3044][1] Song',
+        value: () =>
+          `${selectedVEGroup} produced song #fullvideo\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
       },
     ],
   },
@@ -1585,7 +1595,7 @@ let $ui = (() => {
 
         let routeDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
         let approveDiv = $utils.strToNode(
-          `<div id="action-panel__route"></div>`
+          `<div id="action-panel__action"></div>`
         );
 
         approveDiv.replaceChildren(...this.btns.approve);
@@ -1665,7 +1675,7 @@ let $ui = (() => {
           'yurt-core-plugin-header > div > tcs-view'
         )?.[0];
 
-        // SUPERUSER check
+        // MULTIPLE TABS
         if ($config.SU) {
           stopwatch.oncontextmenu = () => {
             history.pushState({}, '', '#yort');
@@ -2182,73 +2192,6 @@ let rightPanel = (function () {
 
   return container;
 })();
-
-if ($config.SU) {
-  document.onkeypress = (e) => {
-    e = e || window.event;
-    switch (e.keyCode) {
-      // Full reset
-      case 99 || 'c':
-        $utils.fullReset();
-        break;
-      // Submit Lang
-      case 60 || '<':
-        console.log(`submit rus`);
-        action.video.approveVideo('russian');
-        break;
-      // Submit agnostic
-      case 91 || '[':
-        action.video.approveVideo('agnostic');
-        break;
-      // Submit Blank
-      case 93:
-        action.video.approveVideo('blank');
-        break;
-
-      // Submit English
-      case 39:
-        action.video.approveVideo('english');
-        break;
-
-      // Click Submit
-      case 96 || '`':
-        if ($const.is.queue('comments')) {
-          action.comment.approveComment();
-        }
-
-        try {
-          $utils.clickSave();
-        } catch (e) {
-          console.log('❌ Could not click Save.');
-        }
-
-        try {
-          $utils.clickSubmit();
-        } catch (e) {
-          console.log('❌ Could not click Submit.');
-        }
-
-        break;
-
-      // Route:
-      // arabic
-      case 47 || '/':
-        action.video.route('arabic');
-        break;
-      // gv
-      case 42 || '*':
-        action.video.route('gv');
-        break;
-      // adult
-      case 45 || '-':
-        action.video.route('adult');
-        break;
-
-      default:
-        break;
-    }
-  };
-}
 
 function addFilterControls() {
   let onFilterTranscript = () => {
