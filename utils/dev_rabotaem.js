@@ -3,6 +3,20 @@ try {
 } catch (e) {}
 let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
 
+let observers = {
+  mutationObserver: new MutationObserver((mutationsList, observer) => {
+    // Iterate through the mutations
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'childList') {
+        console.log('MUTATION OBSERVER, APPENDING PANEL BACK');
+        $utils.appendNode(rightPanel);
+        break;
+      }
+    }
+  }),
+  mutationConfig: { childList: true },
+};
+
 function shadowDOMSearch(query) {
   var myElement;
   function shadowSearch(rootElement, queryselector) {
@@ -87,13 +101,21 @@ let uiFactory = {
     return tmp.childNodes;
   },
 
-  get filterControls() {
+  get filterControlsPanel() {
     return shadowDOMSearch('.filter-controls-on')?.[0];
   },
   get rightSidebar() {
     return shadowDOMSearch(
       'yurt-core-decision-annotation-tabs > div:nth-child(1)'
     )?.[0];
+  },
+  get videoDecisionPanel() {
+    return shadowDOMSearch('yurt-video-decision-panel-v2')[0];
+  },
+  get header() {
+    return $const.is.queue('comments')
+      ? shadowDOMSearch('tcs-text[spec=title-2]')?.[0]?.shadowRoot
+      : shadowDOMSearch('yurt-core-plugin-header > div > tcs-view')?.[0];
   },
 };
 
@@ -1623,7 +1645,8 @@ class __UI {
         };
       }
 
-      $timers.STOPWATCH_TICK = setInterval(() => {
+      // tick
+      setInterval(() => {
         stopwatch.text = getTimeStr();
       }, 1000);
 
@@ -1668,12 +1691,10 @@ let $ui = (function () {
                   .join('')}
               </mwc-select>`);
     },
-
     switch(label, className) {
       let node =
         $utils.strToNode(`<tcs-view padding="small" fillwidth="" display="flex" spec="row" wrap="nowrap" align="stretch" spacing="none"><mwc-formfield>
-      <mwc-switch class=${className} id=${className}></mwc-switch>
-    </mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`);
+      <mwc-switch class=${className} id=${className}></mwc-switch></mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`);
 
       return node;
     },
@@ -1702,52 +1723,26 @@ let $ui = (function () {
       };
     },
     get actionPanel() {
-      let wrapperDiv = $utils.strToNode(
-        `<div style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
+      const { strToNode: $ } = $utils;
+      let wrapperDiv = $(
+        `<div class="action-panel" style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
       );
 
-      let routeDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
-      let approveDiv = $utils.strToNode(
-        `<div id="action-panel__action"></div>`
-      );
+      let routeDiv = $(`<div class="action-panel__route"></div>`);
+      let approveDiv = $(`<div class="action-panel__action"></div>`);
 
       approveDiv.replaceChildren(...this.btns.approve);
       routeDiv.replaceChildren(...this.btns.route);
 
       wrapperDiv.replaceChildren(routeDiv, approveDiv);
-      wrapperDiv.setAttribute('class', 'action-panel');
 
       let element = atoms.card({ children: wrapperDiv });
 
       // element.style.marginTop = '300px';
 
-      return {
-        element,
-        render() {
-          if (shadowDOMSearch('.action-panel')?.[0]) return;
-          $utils.appendNode(element);
-        },
-      };
+      return element;
     },
-    get commentsPanel() {
-      commentsPanelWrapper = $utils.strToNode(
-        `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
-      );
 
-      commentsPanelWrapper.replaceChildren(...$ui.components.btns.comments);
-
-      let element = atoms.card({ children: commentsPanelWrapper });
-
-      return {
-        element,
-        render() {
-          // return if there is a panel already
-          if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
-
-          $utils.appendNode(element);
-        },
-      };
-    },
     get strikePanel() {
       const { dropdown: createDropdown } = atoms;
       const { card: createCard } = atoms;
@@ -1766,15 +1761,7 @@ let $ui = (function () {
         children: strikeBtnContainer,
       });
 
-      return {
-        element,
-        render() {
-          // return if there is a panel already
-          if (shadowDOMSearch('.strike-panel')?.[0]) return;
-
-          $utils.appendNode(element);
-        },
-      };
+      return element;
     },
     get stopwatchPanel() {
       const getTimeStr = () => `${$utils.formatTime($utils.get.timeElapsed())}`;
@@ -1828,23 +1815,13 @@ let $ui = (function () {
         };
       }
 
-      $timers.STOPWATCH_TICK = setInterval(() => {
+      // tick
+      STOPWATCH_TICK = setInterval(() => {
         stopwatch.text = getTimeStr();
       }, 1000);
 
       return {
         stopwatch,
-        render() {
-          // Already exists, don't render
-          if (shadowDOMSearch('.stopwatch')?.[0]) return;
-
-          try {
-            parentNode.appendChild(stopwatch);
-            $timers.DISPLAY_STOPWATCH = setInterval(this.tick, 1000);
-          } catch (e) {
-            console.log('[❌] Could not append stopwatchPanel', e.stack);
-          }
-        },
         showTimers() {
           const { setTimer, strToNode } = $utils;
           let existingTimers = shadowDOMSearch('.timers')?.[0];
@@ -1857,7 +1834,7 @@ let $ui = (function () {
           const timersArr = [1, 2, 3, 4, 5, 10].map((timerMin) =>
             uiFactory.createButton(timerMin, () => {
               setTimer(timerMin, $const.is.autosubmit());
-              this.showTimers();
+              timersWrapper.remove();
             })
           );
 
@@ -1947,7 +1924,7 @@ let $ui = (function () {
         },
       };
     },
-    configPanel() {
+    get configPanel() {
       let configPanel = $utils.strToNode(
         `<tcs-view class="config-panel" spacing="small"></tcs-view>`
       );
@@ -1965,41 +1942,29 @@ let $ui = (function () {
       );
       return configPanel;
     },
-  };
+    get commentsPanel() {
+      commentsPanelWrapper = $utils.strToNode(
+        `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
+      );
 
-  const render = () => {
-    const { commentsPanel, stopwatchPanel } = components;
+      commentsPanelWrapper.replaceChildren(...$ui.components.btns.comments);
 
-    try {
-      // render UI components every X seconds using setInterval
-      if (!$timers.STOPWATCH_ID) {
-        $timers.STOPWATCH_ID = setInterval(
-          $ui.components.stopwatchPanel.render,
-          $config.FUNCTION_CALL_RETRY_MS
-        );
-      }
+      let element = atoms.card({ children: commentsPanelWrapper });
 
-      if ($const.is.queue('comments')) {
-        commentsPanel.render();
-        return;
-      }
+      return {
+        element,
+        render() {
+          // return if there is a panel already
+          if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
 
-      if (!$timers.RIGHT_PANEL_ID) {
-        $timers.RIGHT_PANEL_ID = setInterval(() => {
-          if (shadowDOMSearch('.superuser-panel')) return;
-          $utils.appendNode(rightPanel);
-        }, $config.FUNCTION_CALL_RETRY_MS);
-      }
-    } catch (e) {
-      if ($config.showLogs) {
-        console.log('[❌] :: UI.render() :: Could not append action panel.');
-      }
-    }
+          $utils.appendNode(element);
+        },
+      };
+    },
   };
 
   return {
     components,
-    render,
   };
 })();
 
@@ -2310,19 +2275,19 @@ let action = {
 };
 
 let rightPanel = (function () {
-  const { actionPanel, strikePanel, approveNotesPanel } = $ui.components;
+  const { actionPanel, strikePanel } = $ui.components;
 
   let container = $utils.strToNode(
     `<div class="superuser-panel" style="display: flex; flex-direction: column; justify-content: start; gap: 1rem; padding: 3rem 0 10rem 0;"></div>`
   );
 
   const elemsArr = [
-    actionPanel.element,
-    strikePanel.element,
-    // approveNotesPanel().element,
+    actionPanel,
+    strikePanel,
+    // approveNotesPanel,
   ];
 
-  elemsArr.forEach((elem) => container.appendChild(elem));
+  container.replaceChildren(...elemsArr);
 
   return container;
 })();
@@ -2332,7 +2297,7 @@ function addFilterControls() {
     setTimeout(() => filterTranscript($const.violativeWords), 1);
   };
 
-  uiFactory.filterControls.appendChild(
+  uiFactory.filterControlsPanel.appendChild(
     uiFactory.createButton('Filter Transcript', onFilterTranscript)
   );
 }
@@ -2347,8 +2312,13 @@ let onHandlers = {
     expandTranscriptContainer();
     setFrequentlyUsedPolicies();
     removeLock();
-
     addFilterControls();
+    onHandlers.onScrollFilterTranscript();
+    drawUI();
+    observers.mutationObserver.observe(
+      uiFactory.videoDecisionPanel.shadowRoot,
+      observers.mutationConfig
+    );
 
     // click reviews tab
     setTimeout(() => {
@@ -2361,17 +2331,23 @@ let onHandlers = {
       });
     }, 1500);
   },
+  onScrollFilterTranscript() {
+    try {
+      shadowDOMSearch('.transcript-container')[0].addEventListener(
+        'scroll',
+        _debounce(() => filterTranscript($const.violativeWords), 200)
+      );
+    } catch (e) {
+      console.log(e.stack);
+    }
+  },
 };
 
-function onScrollFilterTranscript() {
-  try {
-    shadowDOMSearch('.transcript-container')[0].addEventListener(
-      'scroll',
-      _debounce(() => filterTranscript($const.violativeWords), 200)
-    );
-  } catch (e) {
-    console.log(e.stack);
-  }
+function drawUI() {
+  !shadowDOMSearch('.action-panel') &&
+    uiFactory.rightSidebar.appendChild(rightPanel);
+  !shadowDOMSearch('.stopwatch') &&
+    uiFactory.header.appendChild($ui.components.stopwatchPanel.stopwatch);
 }
 
 function $main() {
@@ -2383,8 +2359,6 @@ function $main() {
     // New video, send notification if not focused
     if (event.data.name === 'HOST_ALLOCATED') {
       onHandlers.newVideo();
-      onScrollFilterTranscript();
-      $ui.components.stopwatchPanel.render();
     }
 
     // Submitted video, send notification
@@ -2397,12 +2371,16 @@ function $main() {
     }
   });
 
-  onScrollFilterTranscript();
+  onHandlers.onScrollFilterTranscript();
 
   // TIMERS
   addFilterControls();
   expandTranscriptContainer();
-  if (!$timers.DISPLAY_STOPWATCH || !$timers.ACTION_PANEL) $ui.render();
+  drawUI();
+  observers.mutationObserver.observe(
+    uiFactory.videoDecisionPanel.shadowRoot,
+    observers.mutationConfig
+  );
 }
 
 $main();
