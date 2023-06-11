@@ -3,6 +3,62 @@ try {
 } catch (e) {}
 let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
 
+let observers = {
+  mutationObserver: new MutationObserver((mutationsList, observer) => {
+    // Iterate through the mutations
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'childList') {
+        console.log('MUTATION OBSERVER, APPENDING PANEL BACK');
+        $utils.appendNode(rightPanel);
+        break;
+      }
+    }
+  }),
+  mutationConfig: { childList: true },
+};
+
+function shadowDOMSearch(query) {
+  var myElement;
+  function shadowSearch(rootElement, queryselector) {
+    if (myElement) {
+      return;
+    }
+    if (
+      queryselector &&
+      rootElement.querySelectorAll(queryselector) &&
+      rootElement.querySelectorAll(queryselector)[0]
+    ) {
+      myElement = rootElement.querySelectorAll(queryselector);
+      return;
+    }
+    if (rootElement.nextElementSibling) {
+      shadowSearch(rootElement.nextElementSibling, queryselector);
+    }
+    if (rootElement.shadowRoot) {
+      shadowSearch(rootElement.shadowRoot, queryselector);
+    }
+    if (rootElement.childElementCount > 0) {
+      shadowSearch(rootElement.children[0], queryselector);
+    }
+  }
+  shadowSearch(document.querySelector('yurt-root-app').shadowRoot, query);
+  return myElement;
+}
+
+function _debounce(func, delay) {
+  let timeoutId;
+
+  return function () {
+    const context = this;
+    const args = arguments;
+
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(function () {
+      func.apply(context, args);
+    }, delay);
+  };
+}
+
 function expandTranscriptContainer() {
   try {
     let videoContextContainer = shadowDOMSearch('.video-context-section')?.[0];
@@ -13,7 +69,7 @@ function expandTranscriptContainer() {
 
     [videoContextContainer, videoContextPanel].forEach((elem) => {
       elem.style.height = '700px';
-      elem.style.width = '700px';
+      elem.style.width = '500px';
     });
 
     transcriptContainer.style.height = '600px';
@@ -45,7 +101,7 @@ let uiFactory = {
     return tmp.childNodes;
   },
 
-  get filterControls() {
+  get filterControlsPanel() {
     return shadowDOMSearch('.filter-controls-on')?.[0];
   },
   get rightSidebar() {
@@ -53,9 +109,18 @@ let uiFactory = {
       'yurt-core-decision-annotation-tabs > div:nth-child(1)'
     )?.[0];
   },
+  get videoDecisionPanel() {
+    return shadowDOMSearch('yurt-video-decision-panel-v2')[0];
+  },
+  get header() {
+    return $const.is.queue('comments')
+      ? shadowDOMSearch('tcs-text[spec=title-2]')?.[0]?.shadowRoot
+      : shadowDOMSearch('yurt-core-plugin-header > div > tcs-view')?.[0];
+  },
 };
 
 function filterTranscript(keywordsArr = []) {
+  console.log('filtering transcript...');
   let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
 
   let filteredWords = transcriptNodesArr.filter((wordSpan) =>
@@ -112,15 +177,23 @@ let $const = (() => {
       'арбалет',
     ],
     violativeWords: [
+      'чувака',
       'пидор',
       'пидар',
+      'пидр',
       'хохол',
       'петух',
       'петушара',
       'вагнер',
       'арбалеты',
+      'москал',
+      'оркестр',
+      'музыкант',
+      'своб',
+      'кацап',
+      'укроп',
+      'русня',
     ],
-
     strikeAnswers: {
       song: {
         abuse_location: {
@@ -248,34 +321,6 @@ let $const = (() => {
   };
 })();
 
-function shadowDOMSearch(query) {
-  var myElement;
-  function shadowSearch(rootElement, queryselector) {
-    if (myElement) {
-      return;
-    }
-    if (
-      queryselector &&
-      rootElement.querySelectorAll(queryselector) &&
-      rootElement.querySelectorAll(queryselector)[0]
-    ) {
-      myElement = rootElement.querySelectorAll(queryselector);
-      return;
-    }
-    if (rootElement.nextElementSibling) {
-      shadowSearch(rootElement.nextElementSibling, queryselector);
-    }
-    if (rootElement.shadowRoot) {
-      shadowSearch(rootElement.shadowRoot, queryselector);
-    }
-    if (rootElement.childElementCount > 0) {
-      shadowSearch(rootElement.children[0], queryselector);
-    }
-  }
-  shadowSearch(document.querySelector('yurt-root-app').shadowRoot, query);
-  return myElement;
-}
-
 let recommendationNotes = {
   approve: [
     {
@@ -301,6 +346,11 @@ let recommendationNotes = {
       {
         title: 'Nasheed',
         value: () => `Please check nasheed\nRussian part is approve`,
+      },
+      {
+        title: 'Religious',
+        value: () =>
+          `Russian part is approve, religious content\nPlease action for Arabic`,
       },
       {
         title: 'Arabic Part @',
@@ -382,6 +432,25 @@ let recommendationNotes = {
           `please check for H&D violations @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
     ],
+    ds: [
+      {
+        title: 'Terms of Service',
+        value: () =>
+          `please check for TOS violations #fullvideo\napprove for VE`,
+      },
+    ],
+    cs: [
+      {
+        title: 'Child Safety',
+        value: () =>
+          `please check for CS violations #fullvideo\napprove for VE`,
+      },
+      {
+        title: 'Child Safety @',
+        value: () =>
+          `please check for CS violations @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+    ],
     hate: [
       {
         title: 'Slur @',
@@ -409,18 +478,30 @@ let recommendationNotes = {
           `please check for Yury Podolyak circumvention\napprove for VE`,
       },
     ],
+    t2: [
+      {
+        title: 'Protections',
+        value: () =>
+          `\n\n${'- '.repeat(15)}\n${$utils.get.safetyNetProtections()}`,
+      },
+    ],
   },
   strike: {
     3065: [
       {
-        title: '[3065] Depictive >50%',
+        title: '[3065] Depictive >50% @',
         value: () =>
           `${selectedVEGroup} depictive content >50% of video without EDSA or criticism\n3065 Strike\nRussian`,
       },
       {
+        title: '[3065] Depictive >50% @',
+        value: () =>
+          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism @${$utils.get.videoTimestamp()}\n3065 Strike\nRussian`,
+      },
+      {
         title: '[3065] Depictive+Music',
         value: () =>
-          `${selectedVEGroup} depictive content with upbeat music without EDSA or criticism\n3065 Strike\nRussian`,
+          `${selectedVEGroup} depictive content with upbeat music without EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
       {
         title: '[3065] Depictive+Music @',
@@ -430,7 +511,7 @@ let recommendationNotes = {
       {
         title: '[3065] Song/Nasheed',
         value: () =>
-          `${selectedVEGroup} glorifying song without 4C EDSA or criticism\n3065 Strike\nRussian`,
+          `${selectedVEGroup} glorifying song without 4C EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
     ],
     3039: [
@@ -442,17 +523,17 @@ let recommendationNotes = {
       {
         title: '[3039] Song',
         value: () =>
-          `${selectedVEGroup} produced song\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} produced song #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Raw reupload',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Glorification',
         value: () =>
-          `Glorification of ${selectedVEGroup}\n3039 Strike (not dedicated)\nRussian`,
+          `Glorification of ${selectedVEGroup} #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Glorification @',
@@ -464,23 +545,41 @@ let recommendationNotes = {
       {
         title: '[3044] Raw reupload',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
+      },
+      {
+        title: '[3044] Glorification',
+        value: () =>
+          `Glorification of ${selectedVEGroup} #fullvideo\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
       },
       {
         title: '[3044] Song',
         value: () =>
-          `${selectedVEGroup} produced song\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
+          `${selectedVEGroup} produced song #fullvideo\nChannel dedicated\n• _________\n• _________\n3044 Terminate\nRussian`,
       },
       {
-        title: '[3044] [1] Raw reupload',
+        title: '[3044][1] Raw reupload',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
       },
-
       {
-        title: '[3044] [1] Song',
+        title: '[3044][1] Glorification',
         value: () =>
-          `${selectedVEGroup} produced song\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+          `Glorification of ${selectedVEGroup} #fullvideo\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+      },
+      {
+        title: '[3044][1] Song',
+        value: () =>
+          `${selectedVEGroup} produced song #fullvideo\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+      },
+    ],
+    5013: [
+      {
+        title: '[5013] Raw reupload',
+        value: () =>
+          `${$utils.get.selectedVEGroup(
+            true
+          )} raw re-upload without criticism or 4C EDSA #fullvideo\n5013 PIA\nRussian`,
       },
     ],
   },
@@ -1228,7 +1327,7 @@ function answerQuestion(question, answers) {
 
     setTimeout(() => $utils.expandNotesArea(), 1);
 
-    // SHOW RECOMMENDATIONS
+    // SHOW STRIKE RECOMMENDATIONS
     $ui.components
       .recommendationPanel({
         notesArr: recommendationNotes.strike[chosenPolicyId],
@@ -1339,6 +1438,16 @@ let $props = {
 
           action.video.steps.selectPolicy('5013');
           action.video.steps.selectLanguage('russian');
+
+          setTimeout(
+            () =>
+              $ui.components
+                .recommendationPanel({
+                  notesArr: recommendationNotes.strike[5013],
+                })
+                .render(),
+            1
+          );
         },
       },
     ],
@@ -1504,11 +1613,106 @@ let $props = {
         text: '5',
         onClick: () => $utils.setTimer(5, $const.is.autosubmit()),
       },
+      {
+        text: '10',
+        onClick: () => $utils.setTimer(10, $const.is.autosubmit()),
+      },
     ],
   },
 };
 
-let $ui = (() => {
+class __UI {
+  constructor() {
+    const factory = this.factory;
+    this.actionPanel = factory.createSuperUserPanel();
+    this.stopwatch = factory.createStopwatchPanel();
+  }
+
+  get rightSidebar() {
+    return shadowDOMSearch(
+      'yurt-core-decision-annotation-tabs > div:nth-child(1)'
+    )?.[0];
+  }
+
+  factory = {
+    createButton() {},
+    createDropdown() {},
+    createSwitch(label, className) {
+      let node =
+        $utils.strToNode(`<tcs-view padding="small" fillwidth="" display="flex" spec="row" wrap="nowrap" align="stretch" spacing="none"><mwc-formfield>
+    <mwc-switch class=${className} id=${className}></mwc-switch>
+  </mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`);
+
+      return node;
+    },
+
+    // molecules
+    createSuperUserPanel() {},
+    createStopwatchPanel() {
+      const getTimeStr = () => `${$utils.formatTime($utils.get.timeElapsed())}`;
+
+      const stopwatch = $utils.strToNode(
+        `<tcs-chip spec="tag" text=${getTimeStr()} class="stopwatch"></tcs-chip>`
+      );
+
+      let parentNode = $const.is.queue('comments')
+        ? shadowDOMSearch('tcs-text[spec=title-2]')?.[0]?.shadowRoot
+        : shadowDOMSearch('yurt-core-plugin-header > div > tcs-view')?.[0];
+
+      // MULTIPLE TABS
+      if ($config.SU) {
+        function showTimers() {
+          const { setTimer, strToNode } = $utils;
+          let existingTimers = shadowDOMSearch('.timers')?.[0];
+
+          if (existingTimers) {
+            existingTimers.remove();
+            return;
+          }
+
+          const timersArr = [1, 2, 3, 4, 5, 10].map((timerMin) =>
+            uiFactory.createButton(timerMin, () => {
+              setTimer(timerMin, $const.is.autosubmit());
+              this.showTimers();
+            })
+          );
+
+          const timersWrapper = strToNode(
+            `<tcs-view class="timers container" align="center" spec="row"></tcs-view>`
+          );
+          const autoreloadCheckbox = strToNode(
+            `<mwc-checkbox value="autoreload-page"></mwc-checkbox>`
+          );
+
+          timersWrapper.replaceChildren(...timersArr);
+          timersWrapper.appendChild(autoreloadCheckbox);
+          parentNode.appendChild(timersWrapper);
+        }
+
+        stopwatch.oncontextmenu = () => {
+          history.pushState({}, '', '#yort');
+          window.open('https://yurt.corp.google.com/#review');
+        };
+
+        stopwatch.onclick = () => {
+          $utils.removeLock();
+          showTimers();
+        };
+      }
+
+      // tick
+      setInterval(() => {
+        stopwatch.text = getTimeStr();
+      }, 1000);
+
+      return stopwatch;
+    },
+  };
+
+  props = {};
+}
+
+let $ui = (function () {
   let atoms = {
     card({ children }) {
       let elem = $utils.strToNode(`<yurt-core-card></yurt-core-card>`);
@@ -1542,311 +1746,280 @@ let $ui = (() => {
                   .join('')}
               </mwc-select>`);
     },
-
     switch(label, className) {
       let node =
         $utils.strToNode(`<tcs-view padding="small" fillwidth="" display="flex" spec="row" wrap="nowrap" align="stretch" spacing="none"><mwc-formfield>
-      <mwc-switch class=${className} id=${className}></mwc-switch>
-    </mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`);
+      <mwc-switch class=${className} id=${className}></mwc-switch></mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`);
 
       return node;
     },
   };
 
-  return {
-    // Atomic Design System for creating components
+  let components = {
+    // Ready UI Components
 
-    components: {
-      // Ready UI Components
+    get btns() {
+      const { button: createButton } = atoms;
+      const { button: btnProps } = $props;
 
-      get btns() {
-        const { button: createButton } = atoms;
-        const { button: btnProps } = $props;
-
-        return {
-          approve: btnProps.approve.map(({ text, onClick }) =>
-            createButton({ text, onClick })
-          ),
-          strike: btnProps.strike.map(({ text, onClick }) =>
-            createButton({ text, onClick })
-          ),
-          route: btnProps.route.map(({ text, onClick }) =>
-            createButton({ text, onClick })
-          ),
-          comments: btnProps.comments.map(({ text, onClick }) =>
-            createButton({ text, onClick })
-          ),
-        };
-      },
-      get actionPanel() {
-        let wrapperDiv = $utils.strToNode(
-          `<div style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
-        );
-
-        let routeDiv = $utils.strToNode(`<div id="action-panel__route"></div>`);
-        let approveDiv = $utils.strToNode(
-          `<div id="action-panel__route"></div>`
-        );
-
-        approveDiv.replaceChildren(...this.btns.approve);
-        routeDiv.replaceChildren(...this.btns.route);
-
-        wrapperDiv.replaceChildren(routeDiv, approveDiv);
-        wrapperDiv.setAttribute('class', 'action-panel');
-
-        let element = atoms.card({ children: wrapperDiv });
-
-        // element.style.marginTop = '300px';
-
-        return {
-          element,
-          render() {
-            if (shadowDOMSearch('.action-panel')?.[0]) return;
-            $utils.appendNode(element);
-          },
-        };
-      },
-      get commentsPanel() {
-        commentsPanelWrapper = $utils.strToNode(
-          `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
-        );
-
-        commentsPanelWrapper.replaceChildren(...$ui.components.btns.comments);
-
-        let element = atoms.card({ children: commentsPanelWrapper });
-
-        return {
-          element,
-          render() {
-            // return if there is a panel already
-            if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
-
-            $utils.appendNode(element);
-          },
-        };
-      },
-      get strikePanel() {
-        const { dropdown: createDropdown } = atoms;
-        const { card: createCard } = atoms;
-
-        const dropdownMenu = createDropdown($props.dropdown.strike);
-        const strikeBtnContainer = $utils.strToNode(
-          `<div class="strike-panel container"></div>`
-        );
-
-        strikeBtnContainer.replaceChildren(
-          dropdownMenu,
-          ...$ui.components.btns.strike
-        );
-
-        const element = createCard({
-          children: strikeBtnContainer,
-        });
-
-        return {
-          element,
-          render() {
-            // return if there is a panel already
-            if (shadowDOMSearch('.strike-panel')?.[0]) return;
-
-            $utils.appendNode(element);
-          },
-        };
-      },
-      stopwatchPanel() {
-        const getTimeStr = () =>
-          `${$utils.formatTime($utils.get.timeElapsed())}`;
-
-        const stopwatch = $utils.strToNode(
-          `<tcs-chip spec="tag" text=${getTimeStr()} onclick="() => $ui.components.stopwatchPanel().showTimers()" class="stopwatch container"></tcs-chip>`
-        );
-
-        let parentNode = shadowDOMSearch(
-          'yurt-core-plugin-header > div > tcs-view'
-        )?.[0];
-
-        // SUPERUSER check
-        if ($config.SU) {
-          stopwatch.oncontextmenu = () => {
-            history.pushState({}, '', '#yort');
-            window.open('https://yurt.corp.google.com/#review');
-          };
-
-          stopwatch.onclick = () => {
-            $utils.removeLock();
-            $ui.components.stopwatchPanel().showTimers();
-            setTimeout(
-              () => $ui.components.stopwatchPanel().showTimers(),
-              4000
-            );
-          };
-        }
-
-        return {
-          element: stopwatch,
-          tick() {
-            stopwatch.text = getTimeStr();
-          },
-          render() {
-            // Already exists, don't render
-            if (shadowDOMSearch('.stopwatch')?.[0]) return;
-
-            if ($const.is.queue('comments')) {
-              parentNode = shadowDOMSearch('tcs-text[spec=title-2]')?.[0]
-                ?.shadowRoot;
-            }
-
-            try {
-              parentNode.appendChild(stopwatch);
-
-              $timers.DISPLAY_STOPWATCH = setInterval(() => {
-                this.tick();
-              }, 1000);
-            } catch (e) {
-              console.log('[❌] Could not append stopwatchPanel', e.stack);
-            }
-          },
-          showTimers() {
-            let existingTimers = shadowDOMSearch('.timers')?.[0];
-            if (existingTimers) {
-              existingTimers.remove();
-              return;
-            }
-            let timersWrapper = $utils.strToNode(
-              `<tcs-view class="timers container" align="center" spec="row"><tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(1, ${$const.is.autosubmit()});">1</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(2, ${$const.is.autosubmit()});">2</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(3, ${$const.is.autosubmit()});">3</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(4, ${$const.is.autosubmit()});">4</tcs-button>
-                    <tcs-button spec="flat-primary" class="timer-btn" style="height: 35px;" onclick="$utils.setTimer(5, ${$const.is.autosubmit()});">5</tcs-button>
-                    <mwc-checkbox value="autoreload-page"></mwc-checkbox></tcs-view>`
-            );
-            parentNode.appendChild(timersWrapper);
-          },
-        };
-      },
-      approveNotesPanel() {
-        const container = $utils.strToNode(
-          `<div class="approve-notes container"></div>`
-        );
-
-        let panel = $utils.strToNode(
-          `<mwc-list>${recommendationNotes.approve
-            .map(
-              (note) =>
-                `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><tcs-text>${
-                  note.title
-                }</tcs-text><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
-            )
-            .join('')}</mwc-list>`
-        );
-
-        // add onclicks
-        [...panel.childNodes].forEach(
-          (noteItem) =>
-            (noteItem.onclick = () => {
-              // APPROVE NOTE RECOMMENDATION
-              $utils.setNote(noteItem.value);
-              console.log('note', noteItem.value);
-              shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
-              $utils.clickSave();
-            })
-        );
-
-        container.appendChild(panel);
-
-        return {
-          element: container,
-          render() {
-            if (shadowDOMSearch('.approve-notes')) return;
-            $utils.appendNode(container);
-          },
-        };
-      },
-      recommendationPanel({ notesArr }) {
-        // don't recommend in comments FOR NOW
-        if ($const.is.queue('comments')) return;
-
-        let recommendationList = $utils.strToNode(
-          `<mwc-list>${notesArr
-            .map(
-              (note) =>
-                `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
-                  note.title
-                }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
-            )
-            .join('')}</mwc-list>`
-        );
-
-        [...recommendationList.childNodes].forEach(
-          (node) =>
-            (node.onclick = () => {
-              action.video.steps.addNote(node.value);
-            })
-        );
-
-        return {
-          element: recommendationList,
-          render() {
-            // find parent
-            const parent =
-              shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
-              shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
-                ?.shadowRoot;
-
-            parent?.appendChild(recommendationList);
-          },
-        };
-      },
-      configPanel() {
-        let configPanel = $utils.strToNode(
-          `<tcs-view class="config-panel" spacing="small"></tcs-view>`
-        );
-        let noteSwitch = $utils.strToNode(
-          `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text></div>`
-        );
-
-        let autoSubmit = $utils.strToNode(
-          `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="Submit?" spec="body" texttype="default"></tcs-text></div>`
-        );
-
-        configPanel.replaceChildren(
-          ...noteSwitch.children,
-          ...autoSubmit.children
-        );
-        return configPanel;
-      },
+      return {
+        approve: btnProps.approve.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+        strike: btnProps.strike.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+        route: btnProps.route.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+        comments: btnProps.comments.map(({ text, onClick }) =>
+          createButton({ text, onClick })
+        ),
+      };
     },
-    // methods
-    render() {
-      const { commentsPanel, stopwatchPanel } = this.components;
+    get actionPanel() {
+      const { strToNode: $ } = $utils;
+      let wrapperDiv = $(
+        `<div class="action-panel" style="display: grid; grid-template-columns: repeat(2, 2fr)"></div>`
+      );
 
-      try {
-        // render UI components every X seconds using setInterval
-        if (!$timers.STOPWATCH_ID) {
-          if (shadowDOMSearch('.stopwatch')) return;
-          $timers.STOPWATCH_ID = setInterval(
-            () => stopwatchPanel().render(),
-            $config.FUNCTION_CALL_RETRY_MS
+      let routeDiv = $(`<div class="action-panel__route"></div>`);
+      let approveDiv = $(`<div class="action-panel__action"></div>`);
+
+      approveDiv.replaceChildren(...this.btns.approve);
+      routeDiv.replaceChildren(...this.btns.route);
+
+      wrapperDiv.replaceChildren(routeDiv, approveDiv);
+
+      let element = atoms.card({ children: wrapperDiv });
+
+      // element.style.marginTop = '300px';
+
+      return element;
+    },
+
+    get strikePanel() {
+      const { dropdown: createDropdown } = atoms;
+      const { card: createCard } = atoms;
+
+      const dropdownMenu = createDropdown($props.dropdown.strike);
+      const strikeBtnContainer = $utils.strToNode(
+        `<div class="strike-panel container"></div>`
+      );
+
+      strikeBtnContainer.replaceChildren(
+        dropdownMenu,
+        ...$ui.components.btns.strike
+      );
+
+      const element = createCard({
+        children: strikeBtnContainer,
+      });
+
+      return element;
+    },
+    get stopwatchPanel() {
+      const getTimeStr = () => `${$utils.formatTime($utils.get.timeElapsed())}`;
+
+      const stopwatch = $utils.strToNode(
+        `<tcs-chip spec="tag" text=${getTimeStr()} class="stopwatch container"></tcs-chip>`
+      );
+
+      let parentNode = $const.is.queue('comments')
+        ? shadowDOMSearch('tcs-text[spec=title-2]')?.[0]?.shadowRoot
+        : shadowDOMSearch('yurt-core-plugin-header > div > tcs-view')?.[0];
+
+      // MULTIPLE TABS
+      if ($config.SU) {
+        function showTimers() {
+          const { setTimer, strToNode } = $utils;
+          let existingTimers = shadowDOMSearch('.timers')?.[0];
+
+          if (existingTimers) {
+            existingTimers.remove();
+            return;
+          }
+
+          const timersArr = [1, 2, 3, 4, 5, 10].map((timerMin) =>
+            uiFactory.createButton(timerMin, () => {
+              setTimer(timerMin, $const.is.autosubmit());
+              this.showTimers();
+            })
           );
+
+          const timersWrapper = strToNode(
+            `<tcs-view class="timers container" align="center" spec="row"></tcs-view>`
+          );
+          const autoreloadCheckbox = strToNode(
+            `<mwc-checkbox value="autoreload-page"></mwc-checkbox>`
+          );
+
+          timersWrapper.replaceChildren(...timersArr);
+          timersWrapper.appendChild(autoreloadCheckbox);
+          parentNode.appendChild(timersWrapper);
         }
 
-        if ($const.is.queue('comments')) {
-          commentsPanel.render();
-          return;
-        }
+        stopwatch.oncontextmenu = () => {
+          history.pushState({}, '', '#yort');
+          window.open('https://yurt.corp.google.com/#review');
+        };
 
-        if (!$timers.RIGHT_PANEL_ID) {
-          $timers.RIGHT_PANEL_ID = setInterval(() => {
-            if (shadowDOMSearch('.superuser-panel')) return;
-            $utils.appendNode(rightPanel);
-          }, $config.FUNCTION_CALL_RETRY_MS);
-        }
-      } catch (e) {
-        if ($config.showLogs) {
-          console.log('[❌] :: UI.render() :: Could not append action panel.');
-        }
+        stopwatch.onclick = () => {
+          $utils.removeLock();
+          showTimers();
+        };
       }
+
+      // tick
+      STOPWATCH_TICK = setInterval(() => {
+        stopwatch.text = getTimeStr();
+      }, 1000);
+
+      return {
+        stopwatch,
+        showTimers() {
+          const { setTimer, strToNode } = $utils;
+          let existingTimers = shadowDOMSearch('.timers')?.[0];
+
+          if (existingTimers) {
+            existingTimers.remove();
+            return;
+          }
+
+          const timersArr = [1, 2, 3, 4, 5, 10].map((timerMin) =>
+            uiFactory.createButton(timerMin, () => {
+              setTimer(timerMin, $const.is.autosubmit());
+              timersWrapper.remove();
+            })
+          );
+
+          const timersWrapper = strToNode(
+            `<tcs-view class="timers container" align="center" spec="row"></tcs-view>`
+          );
+          const autoreloadCheckbox = strToNode(
+            `<mwc-checkbox value="autoreload-page"></mwc-checkbox>`
+          );
+
+          timersWrapper.replaceChildren(...timersArr);
+          timersWrapper.appendChild(autoreloadCheckbox);
+          parentNode.appendChild(timersWrapper);
+        },
+      };
     },
+    approveNotesPanel() {
+      const container = $utils.strToNode(
+        `<div class="approve-notes container"></div>`
+      );
+
+      let panel = $utils.strToNode(
+        `<mwc-list>${recommendationNotes.approve
+          .map(
+            (note) =>
+              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><tcs-text>${
+                note.title
+              }</tcs-text><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
+          )
+          .join('')}</mwc-list>`
+      );
+
+      // add onclicks
+      [...panel.childNodes].forEach(
+        (noteItem) =>
+          (noteItem.onclick = () => {
+            // APPROVE NOTE RECOMMENDATION
+            $utils.setNote(noteItem.value);
+            console.log('note', noteItem.value);
+            shadowDOMSearch('tcs-icon-button#create')?.[0]?.click();
+            $utils.clickSave();
+          })
+      );
+
+      container.appendChild(panel);
+
+      return {
+        element: container,
+        render() {
+          if (shadowDOMSearch('.approve-notes')) return;
+          $utils.appendNode(container);
+        },
+      };
+    },
+    recommendationPanel({ notesArr }) {
+      // don't recommend in comments FOR NOW
+      if ($const.is.queue('comments')) return;
+
+      let recommendationList = $utils.strToNode(
+        `<mwc-list>${notesArr
+          .map(
+            (note) =>
+              `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
+                note.title
+              }</span><mwc-icon slot="graphic">note_add</mwc-icon></mwc-list-item>`
+          )
+          .join('')}</mwc-list>`
+      );
+
+      [...recommendationList.childNodes].forEach(
+        (node) =>
+          (node.onclick = () => {
+            action.video.steps.addNote(node.value);
+          })
+      );
+
+      return {
+        element: recommendationList,
+        render() {
+          // find parent
+          const parent =
+            shadowDOMSearch('yurt-core-decision-route')?.[0]?.shadowRoot ||
+            shadowDOMSearch('yurt-core-decision-annotation-edit')?.[0]
+              ?.shadowRoot;
+
+          parent?.appendChild(recommendationList);
+        },
+      };
+    },
+    get configPanel() {
+      let configPanel = $utils.strToNode(
+        `<tcs-view class="config-panel" spacing="small"></tcs-view>`
+      );
+      let noteSwitch = $utils.strToNode(
+        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="🗒Add Note" spec="body" texttype="default"></tcs-text></div>`
+      );
+
+      let autoSubmit = $utils.strToNode(
+        `<div><mwc-formfield><mwc-switch></mwc-mwc-switch></mwc-formfield><tcs-text text="Submit?" spec="body" texttype="default"></tcs-text></div>`
+      );
+
+      configPanel.replaceChildren(
+        ...noteSwitch.children,
+        ...autoSubmit.children
+      );
+      return configPanel;
+    },
+    get commentsPanel() {
+      commentsPanelWrapper = $utils.strToNode(
+        `<tcs-view wrap="wrap" class="action-panel__comments" spacing="small"></tcs-view>`
+      );
+
+      commentsPanelWrapper.replaceChildren(...$ui.components.btns.comments);
+
+      let element = atoms.card({ children: commentsPanelWrapper });
+
+      return {
+        element,
+        render() {
+          // return if there is a panel already
+          if (shadowDOMSearch('.action-panel__comments')?.[0]) return;
+
+          $utils.appendNode(element);
+        },
+      };
+    },
+  };
+
+  return {
+    components,
   };
 })();
 
@@ -1955,15 +2128,6 @@ let action = {
       clickDone();
       clickSave();
       selectLanguage(language);
-
-      // SHOW RECOMMENDATIONS
-      setTimeout(
-        () =>
-          $ui.components
-            .recommendationPanel({ notesArr: recommendationNotes.approve })
-            .render(true),
-        1000
-      );
     },
     route(queue, noteType, reason = 'policy vertical') {
       // TODO
@@ -2015,6 +2179,7 @@ let action = {
 
       addReview();
       veGroup === 'wagner_pmc' && selectLanguage('russian');
+
       setTimeout(
         () =>
           shadowDOMSearch(
@@ -2166,96 +2331,29 @@ let action = {
 };
 
 let rightPanel = (function () {
-  const { actionPanel, strikePanel, approveNotesPanel } = $ui.components;
+  const { actionPanel, strikePanel } = $ui.components;
 
   let container = $utils.strToNode(
-    `<div class="superuser-panel" style="display: flex; flex-direction: column;justify-content: start; gap: 1rem; padding: 3rem 0 10rem 0;"></div>`
+    `<div class="superuser-panel" style="display: flex; flex-direction: column; justify-content: start; gap: 1rem; padding: 3rem 0 10rem 0;"></div>`
   );
 
   const elemsArr = [
-    actionPanel.element,
-    strikePanel.element,
-    // approveNotesPanel().element,
+    actionPanel,
+    strikePanel,
+    // approveNotesPanel,
   ];
 
-  elemsArr.forEach((elem) => container.appendChild(elem));
+  container.replaceChildren(...elemsArr);
 
   return container;
 })();
-
-if ($config.SU) {
-  document.onkeypress = (e) => {
-    e = e || window.event;
-    switch (e.keyCode) {
-      // Full reset
-      case 99 || 'c':
-        $utils.fullReset();
-        break;
-      // Submit Lang
-      case 60 || '<':
-        console.log(`submit rus`);
-        action.video.approveVideo('russian');
-        break;
-      // Submit agnostic
-      case 91 || '[':
-        action.video.approveVideo('agnostic');
-        break;
-      // Submit Blank
-      case 93:
-        action.video.approveVideo('blank');
-        break;
-
-      // Submit English
-      case 39:
-        action.video.approveVideo('english');
-        break;
-
-      // Click Submit
-      case 96 || '`':
-        if ($const.is.queue('comments')) {
-          action.comment.approveComment();
-        }
-
-        try {
-          $utils.clickSave();
-        } catch (e) {
-          console.log('❌ Could not click Save.');
-        }
-
-        try {
-          $utils.clickSubmit();
-        } catch (e) {
-          console.log('❌ Could not click Submit.');
-        }
-
-        break;
-
-      // Route:
-      // arabic
-      case 47 || '/':
-        action.video.route('arabic');
-        break;
-      // gv
-      case 42 || '*':
-        action.video.route('gv');
-        break;
-      // adult
-      case 45 || '-':
-        action.video.route('adult');
-        break;
-
-      default:
-        break;
-    }
-  };
-}
 
 function addFilterControls() {
   let onFilterTranscript = () => {
     setTimeout(() => filterTranscript($const.violativeWords), 1);
   };
 
-  uiFactory.filterControls.appendChild(
+  uiFactory.filterControlsPanel.appendChild(
     uiFactory.createButton('Filter Transcript', onFilterTranscript)
   );
 }
@@ -2270,8 +2368,13 @@ let onHandlers = {
     expandTranscriptContainer();
     setFrequentlyUsedPolicies();
     removeLock();
-
     addFilterControls();
+    onHandlers.onScrollFilterTranscript();
+    drawUI();
+    observers.mutationObserver.observe(
+      uiFactory.videoDecisionPanel.shadowRoot,
+      observers.mutationConfig
+    );
 
     // click reviews tab
     setTimeout(() => {
@@ -2284,7 +2387,24 @@ let onHandlers = {
       });
     }, 1500);
   },
+  onScrollFilterTranscript() {
+    try {
+      shadowDOMSearch('.transcript-container')[0].addEventListener(
+        'scroll',
+        _debounce(() => filterTranscript($const.violativeWords), 200)
+      );
+    } catch (e) {
+      console.log(e.stack);
+    }
+  },
 };
+
+function drawUI() {
+  !shadowDOMSearch('.action-panel') &&
+    uiFactory.rightSidebar.appendChild(rightPanel);
+  !shadowDOMSearch('.stopwatch') &&
+    uiFactory.header.appendChild($ui.components.stopwatchPanel.stopwatch);
+}
 
 function $main() {
   // Event Listeners & Notifications
@@ -2293,7 +2413,9 @@ function $main() {
     const notFocused = () => !document.hasFocus();
 
     // New video, send notification if not focused
-    if (event.data.name === 'HOST_ALLOCATED') onHandlers.newVideo();
+    if (event.data.name === 'HOST_ALLOCATED') {
+      onHandlers.newVideo();
+    }
 
     // Submitted video, send notification
     if (event.data.name === 'APP_REVIEW_COMPLETED' && notFocused()) {
@@ -2305,10 +2427,16 @@ function $main() {
     }
   });
 
+  onHandlers.onScrollFilterTranscript();
+
   // TIMERS
   addFilterControls();
   expandTranscriptContainer();
-  if (!$timers.DISPLAY_STOPWATCH || !$timers.ACTION_PANEL) $ui.render();
+  drawUI();
+  observers.mutationObserver.observe(
+    uiFactory.videoDecisionPanel.shadowRoot,
+    observers.mutationConfig
+  );
 }
 
 $main();
