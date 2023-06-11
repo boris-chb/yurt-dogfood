@@ -348,6 +348,11 @@ let recommendationNotes = {
         value: () => `Please check nasheed\nRussian part is approve`,
       },
       {
+        title: 'Religious',
+        value: () =>
+          `Russian part is approve, religious content\nPlease action for Arabic`,
+      },
+      {
         title: 'Arabic Part @',
         value: () =>
           `Please check Arabic part @${$utils.get.videoTimestamp()}\nRussian part is approve`,
@@ -427,6 +432,25 @@ let recommendationNotes = {
           `please check for H&D violations @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
     ],
+    ds: [
+      {
+        title: 'Terms of Service',
+        value: () =>
+          `please check for TOS violations #fullvideo\napprove for VE`,
+      },
+    ],
+    cs: [
+      {
+        title: 'Child Safety',
+        value: () =>
+          `please check for CS violations #fullvideo\napprove for VE`,
+      },
+      {
+        title: 'Child Safety @',
+        value: () =>
+          `please check for CS violations @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+    ],
     hate: [
       {
         title: 'Slur @',
@@ -454,9 +478,21 @@ let recommendationNotes = {
           `please check for Yury Podolyak circumvention\napprove for VE`,
       },
     ],
+    t2: [
+      {
+        title: 'Protections',
+        value: () =>
+          `\n\n${'- '.repeat(15)}\n${$utils.get.safetyNetProtections()}`,
+      },
+    ],
   },
   strike: {
     3065: [
+      {
+        title: '[3065] Depictive >50% @',
+        value: () =>
+          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism\n3065 Strike\nRussian`,
+      },
       {
         title: '[3065] Depictive >50% @',
         value: () =>
@@ -535,6 +571,15 @@ let recommendationNotes = {
         title: '[3044][1] Song',
         value: () =>
           `${selectedVEGroup} produced song #fullvideo\nChannel dedicated (single video on channel)\n3044 Terminate\nRussian`,
+      },
+    ],
+    5013: [
+      {
+        title: '[5013] Raw reupload',
+        value: () =>
+          `${$utils.get.selectedVEGroup(
+            true
+          )} raw re-upload without criticism or 4C EDSA #fullvideo\n5013 PIA\nRussian`,
       },
     ],
   },
@@ -1282,7 +1327,7 @@ function answerQuestion(question, answers) {
 
     setTimeout(() => $utils.expandNotesArea(), 1);
 
-    // SHOW RECOMMENDATIONS
+    // SHOW STRIKE RECOMMENDATIONS
     $ui.components
       .recommendationPanel({
         notesArr: recommendationNotes.strike[chosenPolicyId],
@@ -1393,6 +1438,16 @@ let $props = {
 
           action.video.steps.selectPolicy('5013');
           action.video.steps.selectLanguage('russian');
+
+          setTimeout(
+            () =>
+              $ui.components
+                .recommendationPanel({
+                  notesArr: recommendationNotes.strike[5013],
+                })
+                .render(),
+            1
+          );
         },
       },
     ],
@@ -2124,6 +2179,7 @@ let action = {
 
       addReview();
       veGroup === 'wagner_pmc' && selectLanguage('russian');
+
       setTimeout(
         () =>
           shadowDOMSearch(
