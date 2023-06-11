@@ -1242,6 +1242,12 @@ let $utils = {
 };
 
 let $lib = {
+  removeBeforeUnload() {
+    let beforeunloads = getEventListeners(window).beforeunload.map(
+      (f) => f.listener
+    );
+    beforeunloads.forEach((f) => window.removeEventListener('beforeunload', f));
+  },
   changeFavIcon(icon) {
     let currentIcon = document.querySelector("link[rel~='icon']");
     currentIcon.href = icon ? icon : 'https://www.google.com/favicon.ico';
