@@ -345,12 +345,12 @@ let recommendationNotes = {
       },
       {
         title: 'Nasheed',
-        value: () => `Please check nasheed\nRussian part is approve`,
+        value: () => `Please check nasheed #fullvideo\nRussian part is approve`,
       },
       {
         title: 'Religious',
         value: () =>
-          `Russian part is approve, religious content\nPlease action for Arabic`,
+          `Russian part is approve, religious content #fullvideo\nPlease action for Arabic`,
       },
       {
         title: 'Arabic Part @',
@@ -359,10 +359,16 @@ let recommendationNotes = {
       },
       {
         title: 'Arabic Part',
-        value: () => 'Please check Arabic part\nRussian part is approve',
+        value: () =>
+          'Please check Arabic part #fullvideo\nRussian part is approve',
       },
     ],
     drugs: [
+      {
+        title: 'Drugs policy',
+        value: () =>
+          `please check for drugs policy violations #fullvideo\napprove for VE`,
+      },
       {
         title: 'Drugs policy @',
         value: () =>
@@ -371,7 +377,12 @@ let recommendationNotes = {
       {
         title: 'Gambling',
         value: () =>
-          `please check for gambling policy violations\napprove for VE`,
+          `please check for gambling policy violations #fullvideo\napprove for VE`,
+      },
+      {
+        title: 'Gambling @',
+        value: () =>
+          `please check for gambling policy violations @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
     ],
     gv: [
@@ -384,6 +395,11 @@ let recommendationNotes = {
         title: 'GV @',
         value: () =>
           `please check for GV @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
+        title: 'Scripted GV @',
+        value: () =>
+          `please check for scripted GV @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
     ],
     adult: [
@@ -413,6 +429,10 @@ let recommendationNotes = {
         title: 'Spam @',
         value: () =>
           `please check for spam @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
+        title: 'Spam',
+        value: () => `please check for spam #fullvideo\napprove for VE`,
       },
       {
         title: 'Spam (link)',
@@ -460,9 +480,12 @@ let recommendationNotes = {
       {
         title: '{ Slur } @',
         value: () =>
-          `please check for slur ${
-            shadowDOMSearch('.current-transcript')[0].textContent
-          } @${$utils.get.videoTimestamp()}\napprove for VE`,
+          `please check for slur ${(() => {
+            const highlightedWord = shadowDOMSearch('.current-transcript')?.[0]
+              .textContent;
+
+            return highlightedWord ? highlightedWord : '';
+          })()} @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
       {
         title: 'Hate @',
@@ -480,25 +503,30 @@ let recommendationNotes = {
           `please check for Denazification of Ukraine @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
       {
+        title: 'Podolyak @',
+        value: () =>
+          `please check for Yury Podolyak circumvention @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
         title: 'Podolyak',
         value: () =>
-          `please check for Yury Podolyak circumvention\napprove for VE`,
+          `please check for Yury Podolyak circumvention #fullvideo\napprove for VE`,
       },
     ],
     t2: [
       {
         title: 'Protections',
         value: () =>
-          `\n\n${'- '.repeat(15)}\n${$utils.get.safetyNetProtections()}`,
+          `\n${'- '.repeat(15)}\n${$utils.get.safetyNetProtections()}`,
       },
     ],
   },
   strike: {
     3065: [
       {
-        title: '[3065] Depictive >50% @',
+        title: '[3065] Depictive >50%',
         value: () =>
-          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism\n3065 Strike\nRussian`,
+          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
       {
         title: '[3065] Depictive >50% @',
@@ -520,12 +548,17 @@ let recommendationNotes = {
         value: () =>
           `${selectedVEGroup} glorifying song without 4C EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
+      {
+        title: '[3065] Song/Nasheed @',
+        value: () =>
+          `${selectedVEGroup} glorifying song without 4C EDSA or criticism @${$utils.get.videoTimestamp()}\n3065 Strike\nRussian`,
+      },
     ],
     3039: [
       {
-        title: '[3039] Song @',
+        title: '[3039] Raw reupload',
         value: () =>
-          `${selectedVEGroup} produced song @${$utils.get.videoTimestamp()}\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Song',
@@ -533,9 +566,9 @@ let recommendationNotes = {
           `${selectedVEGroup} produced song #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
-        title: '[3039] Raw reupload',
+        title: '[3039] Song @',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} produced song @${$utils.get.videoTimestamp()}\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Glorification',
