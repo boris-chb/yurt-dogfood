@@ -458,12 +458,19 @@ let recommendationNotes = {
           `please check for slur @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
       {
+        title: '{ Slur } @',
+        value: () =>
+          `please check for slur ${
+            shadowDOMSearch('.current-transcript')[0].textContent
+          } @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
         title: 'Hate @',
         value: () =>
           `please check for hate policy violations @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
       {
-        title: '🇺🇦🐖 Dehumanization @',
+        title: '🇺🇦 🐖 Dehumanization @',
         value: () =>
           `please check for Ukrainian pig dehumanization @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
