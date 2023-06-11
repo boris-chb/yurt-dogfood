@@ -45,20 +45,6 @@ function shadowDOMSearch(query) {
   return myElement;
 }
 
-function _debounce(func, delay) {
-  let timeoutId;
-
-  return function () {
-    const context = this;
-    const args = arguments;
-
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(function () {
-      func.apply(context, args);
-    }, delay);
-  };
-}
-
 function expandTranscriptContainer() {
   try {
     let videoContextContainer = shadowDOMSearch('.video-context-section')?.[0];
@@ -139,11 +125,10 @@ let $config = {
   SU: false,
   USE_KEYPRESS: false,
   COMMENTS_TIMER_MIN: 1,
-  CLICK_BUTTON_RETRY: 50,
+  CLICK_BUTTON_RETRY_COUNT: 100,
   CLICK_BUTTON_INTERVAL_MS: 1,
   FUNCTION_CALL_RETRY_MS: 100,
   NOTIFICATION_TIMEOUT_SEC: 10,
-  ACTION_PANEL_POSITION: 'decisionTab',
   showLogs: true,
 };
 
@@ -345,12 +330,12 @@ let recommendationNotes = {
       },
       {
         title: 'Nasheed',
-        value: () => `Please check nasheed\nRussian part is approve`,
+        value: () => `Please check nasheed #fullvideo\nRussian part is approve`,
       },
       {
         title: 'Religious',
         value: () =>
-          `Russian part is approve, religious content\nPlease action for Arabic`,
+          `Russian part is approve, religious content #fullvideo\nPlease action for Arabic`,
       },
       {
         title: 'Arabic Part @',
@@ -359,10 +344,16 @@ let recommendationNotes = {
       },
       {
         title: 'Arabic Part',
-        value: () => 'Please check Arabic part\nRussian part is approve',
+        value: () =>
+          'Please check Arabic part #fullvideo\nRussian part is approve',
       },
     ],
     drugs: [
+      {
+        title: 'Drugs policy',
+        value: () =>
+          `please check for drugs policy violations #fullvideo\napprove for VE`,
+      },
       {
         title: 'Drugs policy @',
         value: () =>
@@ -371,7 +362,12 @@ let recommendationNotes = {
       {
         title: 'Gambling',
         value: () =>
-          `please check for gambling policy violations\napprove for VE`,
+          `please check for gambling policy violations #fullvideo\napprove for VE`,
+      },
+      {
+        title: 'Gambling @',
+        value: () =>
+          `please check for gambling policy violations @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
     ],
     gv: [
@@ -384,6 +380,11 @@ let recommendationNotes = {
         title: 'GV @',
         value: () =>
           `please check for GV @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
+        title: 'Scripted GV @',
+        value: () =>
+          `please check for scripted GV @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
     ],
     adult: [
@@ -413,6 +414,10 @@ let recommendationNotes = {
         title: 'Spam @',
         value: () =>
           `please check for spam @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
+        title: 'Spam',
+        value: () => `please check for spam #fullvideo\napprove for VE`,
       },
       {
         title: 'Spam (link)',
@@ -458,12 +463,22 @@ let recommendationNotes = {
           `please check for slur @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
       {
+        title: '{ Slur } @',
+        value: () =>
+          `please check for slur ${(() => {
+            const highlightedWord = shadowDOMSearch('.current-transcript')?.[0]
+              .textContent;
+
+            return highlightedWord ? highlightedWord : '';
+          })()} @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
         title: 'Hate @',
         value: () =>
           `please check for hate policy violations @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
       {
-        title: '🇺🇦🐖 Dehumanization @',
+        title: '🇺🇦 🐖 Dehumanization @',
         value: () =>
           `please check for Ukrainian pig dehumanization @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
@@ -473,25 +488,30 @@ let recommendationNotes = {
           `please check for Denazification of Ukraine @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
       {
+        title: 'Podolyak @',
+        value: () =>
+          `please check for Yury Podolyak circumvention @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+      {
         title: 'Podolyak',
         value: () =>
-          `please check for Yury Podolyak circumvention\napprove for VE`,
+          `please check for Yury Podolyak circumvention #fullvideo\napprove for VE`,
       },
     ],
     t2: [
       {
         title: 'Protections',
         value: () =>
-          `\n\n${'- '.repeat(15)}\n${$utils.get.safetyNetProtections()}`,
+          `\n${'- '.repeat(15)}\n${$utils.get.safetyNetProtections()}`,
       },
     ],
   },
   strike: {
     3065: [
       {
-        title: '[3065] Depictive >50% @',
+        title: '[3065] Depictive >50%',
         value: () =>
-          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism\n3065 Strike\nRussian`,
+          `${selectedVEGroup} depictive content >50% of video without EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
       {
         title: '[3065] Depictive >50% @',
@@ -513,12 +533,17 @@ let recommendationNotes = {
         value: () =>
           `${selectedVEGroup} glorifying song without 4C EDSA or criticism #fullvideo\n3065 Strike\nRussian`,
       },
+      {
+        title: '[3065] Song/Nasheed @',
+        value: () =>
+          `${selectedVEGroup} glorifying song without 4C EDSA or criticism @${$utils.get.videoTimestamp()}\n3065 Strike\nRussian`,
+      },
     ],
     3039: [
       {
-        title: '[3039] Song @',
+        title: '[3039] Raw reupload',
         value: () =>
-          `${selectedVEGroup} produced song @${$utils.get.videoTimestamp()}\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Song',
@@ -526,9 +551,9 @@ let recommendationNotes = {
           `${selectedVEGroup} produced song #fullvideo\n3039 Strike (not dedicated)\nRussian`,
       },
       {
-        title: '[3039] Raw reupload',
+        title: '[3039] Song @',
         value: () =>
-          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n3039 Strike (not dedicated)\nRussian`,
+          `${selectedVEGroup} produced song @${$utils.get.videoTimestamp()}\n3039 Strike (not dedicated)\nRussian`,
       },
       {
         title: '[3039] Glorification',
@@ -577,9 +602,7 @@ let recommendationNotes = {
       {
         title: '[5013] Raw reupload',
         value: () =>
-          `${$utils.get.selectedVEGroup(
-            true
-          )} raw re-upload without criticism or 4C EDSA #fullvideo\n5013 PIA\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n5013 PIA\nRussian`,
       },
     ],
   },
@@ -587,7 +610,7 @@ let recommendationNotes = {
 
 let $utils = {
   click: {
-    element(queryStr, args, retries = $config.CLICK_BUTTON_RETRY) {
+    element(queryStr, args, retries = $config.CLICK_BUTTON_RETRY_COUNT) {
       let btn;
       if (queryStr === 'mwc-list-item') {
         // for list-item, convert nodelist to array, then filter based on value
@@ -619,7 +642,7 @@ let $utils = {
         // btn not found, try again
         retries--;
         retries % 10 === 0 &&
-          console.log(retries, `[♻] Looking for ${queryStr}`);
+          console.log(Math.floor(retries / 10), `[♻] Looking for ${queryStr}`);
         setTimeout(
           () => $utils.click.element(queryStr, null, retries),
           $config.CLICK_BUTTON_INTERVAL_MS
@@ -628,14 +651,12 @@ let $utils = {
       }
 
       if (retries === 0) return;
-      if (btn.checked) {
-        console.log('CHECKEDDDDDD');
-      }
 
       try {
         btn.click();
       } catch (e) {
-        console.error(e);
+        console.log('COULD NOT CLICK', queryStr);
+        console.log(e.stack);
       }
     },
     listItem(listArgs) {
@@ -666,6 +687,14 @@ let $utils = {
     },
     radio(listArgs) {
       $utils.click.element('mwc-radio', listArgs);
+    },
+    myReviews() {
+      $utils.click.element('mwc-tab', {
+        label: '"My Reviews (0)"',
+      });
+      $utils.click.element('mwc-tab', {
+        label: '"My Reviews"',
+      });
     },
   },
   get: {
@@ -1071,6 +1100,23 @@ let $utils = {
 
     return violativeVideoIds;
   },
+  async filterVideoByDescription(keywordsArr) {
+    const { videos } = await this.getChannelVideos();
+
+    if (!keywordsArr) keywordsArr = $const.filterKeywords;
+    let byKeyword = videos.filter((video) => {
+      if (!video.videoDescription) return;
+      keywordsArr.some((word) =>
+        video.videoDescription.toLowerCase().includes(word)
+      );
+    });
+
+    let violativeVideoIds = byKeyword
+      .map((vid) => vid.externalVideoId)
+      .join(', ');
+
+    return violativeVideoIds;
+  },
 
   // SETTERS //
   setNote(noteStr) {
@@ -1235,6 +1281,12 @@ let $utils = {
 };
 
 let $lib = {
+  removeBeforeUnload() {
+    let beforeunloads = getEventListeners(window).beforeunload.map(
+      (f) => f.listener
+    );
+    beforeunloads.forEach((f) => window.removeEventListener('beforeunload', f));
+  },
   changeFavIcon(icon) {
     let currentIcon = document.querySelector("link[rel~='icon']");
     currentIcon.href = icon ? icon : 'https://www.google.com/favicon.ico';
@@ -1250,6 +1302,21 @@ let $lib = {
   dVideoNew() {
     return $reviewRoot.hostAllocatedMessage.reviewData.videoReviewData
       .playerMetadata.playerResponse.uneditedVideoInfo.previewServerUrl;
+  },
+
+  // function tools
+  _debounce(func, delay) {
+    let timeoutId;
+
+    return function () {
+      const context = this;
+      const args = arguments;
+
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(function () {
+        func.apply(context, args);
+      }, delay);
+    };
   },
 };
 
@@ -1438,6 +1505,8 @@ let $props = {
 
           action.video.steps.selectPolicy('5013');
           action.video.steps.selectLanguage('russian');
+
+          selectedVEGroup = $utils.get.selectedVEGroup(true);
 
           setTimeout(
             () =>
@@ -1949,7 +2018,7 @@ let $ui = (function () {
       if ($const.is.queue('comments')) return;
 
       let recommendationList = $utils.strToNode(
-        `<mwc-list>${notesArr
+        `<mwc-list style="margin-bottom: 100px;">${notesArr
           .map(
             (note) =>
               `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
@@ -2087,7 +2156,7 @@ let action = {
       },
       isRelatedToVE(related = 'no') {
         let possibleValues = ['no', 'yes_borderline', 'yes_edsa'];
-        $utils.click.radio({ value: 'no' });
+        $utils.click.radio({ value: related });
       },
       addNote(note) {
         try {
@@ -2377,21 +2446,23 @@ let onHandlers = {
     );
 
     // click reviews tab
-    setTimeout(() => {
-      console.log("[i] Click 'My Reviews Tab'");
-      click.element('mwc-tab', {
-        label: '"My Reviews (0)"',
-      });
-      click.element('mwc-tab', {
-        label: '"My Reviews"',
-      });
-    }, 1500);
+    // setTimeout(() => {
+    // console.log("[i] Click 'My Reviews Tab'");
+    // click.element('mwc-tab', {
+    //   label: '"My Reviews (0)"',
+    // });
+    // click.element('mwc-tab', {
+    //   label: '"My Reviews"',
+    // });
+    // }, 1500);
+
+    setTimeout(click.myReviews, 1500);
   },
   onScrollFilterTranscript() {
     try {
       shadowDOMSearch('.transcript-container')[0].addEventListener(
         'scroll',
-        _debounce(() => filterTranscript($const.violativeWords), 200)
+        $lib._debounce(() => filterTranscript($const.violativeWords), 200)
       );
     } catch (e) {
       console.log(e.stack);
@@ -2427,16 +2498,8 @@ function $main() {
     }
   });
 
-  onHandlers.onScrollFilterTranscript();
-
-  // TIMERS
-  addFilterControls();
-  expandTranscriptContainer();
-  drawUI();
-  observers.mutationObserver.observe(
-    uiFactory.videoDecisionPanel.shadowRoot,
-    observers.mutationConfig
-  );
+  // init
+  onHandlers.newVideo();
 }
 
 $main();

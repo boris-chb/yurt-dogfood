@@ -45,20 +45,6 @@ function shadowDOMSearch(query) {
   return myElement;
 }
 
-function _debounce(func, delay) {
-  let timeoutId;
-
-  return function () {
-    const context = this;
-    const args = arguments;
-
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(function () {
-      func.apply(context, args);
-    }, delay);
-  };
-}
-
 function expandTranscriptContainer() {
   try {
     let videoContextContainer = shadowDOMSearch('.video-context-section')?.[0];
@@ -139,11 +125,10 @@ let $config = {
   SU: true,
   USE_KEYPRESS: false,
   COMMENTS_TIMER_MIN: 1,
-  CLICK_BUTTON_RETRY: 50,
+  CLICK_BUTTON_RETRY_COUNT: 100,
   CLICK_BUTTON_INTERVAL_MS: 1,
   FUNCTION_CALL_RETRY_MS: 100,
   NOTIFICATION_TIMEOUT_SEC: 10,
-  ACTION_PANEL_POSITION: 'decisionTab',
   showLogs: true,
 };
 
@@ -617,9 +602,7 @@ let recommendationNotes = {
       {
         title: '[5013] Raw reupload',
         value: () =>
-          `${$utils.get.selectedVEGroup(
-            true
-          )} raw re-upload without criticism or 4C EDSA #fullvideo\n5013 PIA\nRussian`,
+          `${selectedVEGroup} raw re-upload without criticism or 4C EDSA #fullvideo\n5013 PIA\nRussian`,
       },
     ],
   },
@@ -627,7 +610,7 @@ let recommendationNotes = {
 
 let $utils = {
   click: {
-    element(queryStr, args, retries = $config.CLICK_BUTTON_RETRY) {
+    element(queryStr, args, retries = $config.CLICK_BUTTON_RETRY_COUNT) {
       let btn;
       if (queryStr === 'mwc-list-item') {
         // for list-item, convert nodelist to array, then filter based on value
@@ -659,7 +642,7 @@ let $utils = {
         // btn not found, try again
         retries--;
         retries % 10 === 0 &&
-          console.log(retries, `[♻] Looking for ${queryStr}`);
+          console.log(Math.floor(retries / 10), `[♻] Looking for ${queryStr}`);
         setTimeout(
           () => $utils.click.element(queryStr, null, retries),
           $config.CLICK_BUTTON_INTERVAL_MS
@@ -668,14 +651,12 @@ let $utils = {
       }
 
       if (retries === 0) return;
-      if (btn.checked) {
-        console.log('CHECKEDDDDDD');
-      }
 
       try {
         btn.click();
       } catch (e) {
-        console.error(e);
+        console.log('COULD NOT CLICK', queryStr);
+        console.log(e.stack);
       }
     },
     listItem(listArgs) {
@@ -706,6 +687,14 @@ let $utils = {
     },
     radio(listArgs) {
       $utils.click.element('mwc-radio', listArgs);
+    },
+    myReviews() {
+      $utils.click.element('mwc-tab', {
+        label: '"My Reviews (0)"',
+      });
+      $utils.click.element('mwc-tab', {
+        label: '"My Reviews"',
+      });
     },
   },
   get: {
@@ -1111,6 +1100,23 @@ let $utils = {
 
     return violativeVideoIds;
   },
+  async filterVideoByDescription(keywordsArr) {
+    const { videos } = await this.getChannelVideos();
+
+    if (!keywordsArr) keywordsArr = $const.filterKeywords;
+    let byKeyword = videos.filter((video) => {
+      if (!video.videoDescription) return;
+      keywordsArr.some((word) =>
+        video.videoDescription.toLowerCase().includes(word)
+      );
+    });
+
+    let violativeVideoIds = byKeyword
+      .map((vid) => vid.externalVideoId)
+      .join(', ');
+
+    return violativeVideoIds;
+  },
 
   // SETTERS //
   setNote(noteStr) {
@@ -1296,6 +1302,21 @@ let $lib = {
   dVideoNew() {
     return $reviewRoot.hostAllocatedMessage.reviewData.videoReviewData
       .playerMetadata.playerResponse.uneditedVideoInfo.previewServerUrl;
+  },
+
+  // function tools
+  _debounce(func, delay) {
+    let timeoutId;
+
+    return function () {
+      const context = this;
+      const args = arguments;
+
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(function () {
+        func.apply(context, args);
+      }, delay);
+    };
   },
 };
 
@@ -1484,6 +1505,8 @@ let $props = {
 
           action.video.steps.selectPolicy('5013');
           action.video.steps.selectLanguage('russian');
+
+          selectedVEGroup = $utils.get.selectedVEGroup(true);
 
           setTimeout(
             () =>
@@ -1995,7 +2018,7 @@ let $ui = (function () {
       if ($const.is.queue('comments')) return;
 
       let recommendationList = $utils.strToNode(
-        `<mwc-list>${notesArr
+        `<mwc-list style="margin-bottom: 100px;">${notesArr
           .map(
             (note) =>
               `<mwc-list-item class="recommendation-item" graphic="avatar" value="${note.value()}"><span>${
@@ -2133,7 +2156,7 @@ let action = {
       },
       isRelatedToVE(related = 'no') {
         let possibleValues = ['no', 'yes_borderline', 'yes_edsa'];
-        $utils.click.radio({ value: 'no' });
+        $utils.click.radio({ value: related });
       },
       addNote(note) {
         try {
@@ -2423,21 +2446,23 @@ let onHandlers = {
     );
 
     // click reviews tab
-    setTimeout(() => {
-      console.log("[i] Click 'My Reviews Tab'");
-      click.element('mwc-tab', {
-        label: '"My Reviews (0)"',
-      });
-      click.element('mwc-tab', {
-        label: '"My Reviews"',
-      });
-    }, 1500);
+    // setTimeout(() => {
+    // console.log("[i] Click 'My Reviews Tab'");
+    // click.element('mwc-tab', {
+    //   label: '"My Reviews (0)"',
+    // });
+    // click.element('mwc-tab', {
+    //   label: '"My Reviews"',
+    // });
+    // }, 1500);
+
+    setTimeout(click.myReviews, 1500);
   },
   onScrollFilterTranscript() {
     try {
       shadowDOMSearch('.transcript-container')[0].addEventListener(
         'scroll',
-        _debounce(() => filterTranscript($const.violativeWords), 200)
+        $lib._debounce(() => filterTranscript($const.violativeWords), 200)
       );
     } catch (e) {
       console.log(e.stack);
@@ -2473,16 +2498,8 @@ function $main() {
     }
   });
 
-  onHandlers.onScrollFilterTranscript();
-
-  // TIMERS
-  addFilterControls();
-  expandTranscriptContainer();
-  drawUI();
-  observers.mutationObserver.observe(
-    uiFactory.videoDecisionPanel.shadowRoot,
-    observers.mutationConfig
-  );
+  // init
+  onHandlers.newVideo();
 }
 
 $main();
