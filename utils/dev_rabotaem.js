@@ -1,6 +1,9 @@
 try {
   $utils.clearTimers();
 } catch (e) {}
+
+let selectedVEGroup;
+
 let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
 
 let observers = {
@@ -64,10 +67,77 @@ function expandTranscriptContainer() {
   }
 }
 
-function highlighter(elem) {
-  elem.style.color = 'aqua';
-  elem.style.backgroundColor = 'red';
-  elem.style.border = '1px solid green';
+function highlighter(elem, type = 've') {
+  if (type === 've') {
+    elem.style.backgroundColor = 'red';
+  }
+
+  if (type === 'hate') {
+    elem.style.color = 'white';
+    elem.style.backgroundColor = 'purple';
+    elem.style.border = '1px solid yellow';
+  }
+
+  if (type === 'adult') {
+    elem.classList.add('highlight');
+  }
+}
+
+function filterTranscript(keywordsArr = $const.violativeWords) {
+  console.log('filtering transcript...');
+  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
+
+  let filteredWords = transcriptNodesArr.filter((wordSpan) =>
+    keywordsArr.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    )
+  );
+
+  console.log(filteredWords);
+
+  filteredWords.forEach((word) => highlighter(word));
+  return filteredWords;
+}
+
+function filterTranscriptByCategory(
+  wordsToFilter = $const.violativeWordsByCategory
+) {
+  console.log('filtering transcript by category...');
+  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
+
+  console.log(transcriptNodesArr);
+
+  let veWords = transcriptNodesArr.filter((wordSpan) => {
+    const veWords = wordsToFilter.ve.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    );
+
+    return veWords;
+  });
+
+  let hateWords = transcriptNodesArr.filter((wordSpan) => {
+    const hateWords = wordsToFilter.hate.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    );
+
+    return hateWords;
+  });
+
+  let adultWords = transcriptNodesArr.filter((wordSpan) => {
+    const adultWords = wordsToFilter.adult.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    );
+
+    return adultWords;
+  });
+
+  console.log('veWords', veWords);
+  console.log('hateWords', hateWords);
+  console.log('adultWords', adultWords);
+
+  veWords.forEach((word) => highlighter(word, 've'));
+  hateWords.forEach((word) => highlighter(word, 'hate'));
+  adultWords.forEach((word) => highlighter(word, 'adult'));
 }
 
 let uiFactory = {
@@ -104,22 +174,6 @@ let uiFactory = {
       : shadowDOMSearch('yurt-core-plugin-header > div > tcs-view')?.[0];
   },
 };
-
-function filterTranscript(keywordsArr = []) {
-  console.log('filtering transcript...');
-  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
-
-  let filteredWords = transcriptNodesArr.filter((wordSpan) =>
-    keywordsArr.some((word) =>
-      wordSpan.textContent.toLowerCase().includes(word)
-    )
-  );
-
-  filteredWords.forEach((word) => highlighter(word));
-  return filteredWords;
-}
-
-let selectedVEGroup;
 
 let $config = {
   SU: true,
@@ -179,6 +233,46 @@ let $const = (() => {
       'укроп',
       'русня',
     ],
+    violativeWordsByCategory: {
+      ve: ['чувака', 'вагнер', 'арбалеты', 'оркестр', 'музыкант', 'своб'],
+      hate: [
+        'москал',
+        'кацап',
+        'укроп',
+        'русня',
+        'пидор',
+        'пидар',
+        'пидр',
+        'хохол',
+        'петух',
+        'петуш',
+        'нигер',
+      ],
+      adult: [
+        'сука',
+        'хуй',
+        'хуё',
+        'хуя',
+        'охуел',
+        'охуительно',
+        'дрочить',
+        'залупа',
+        'пиздец',
+        'конча',
+        'гондон',
+        'гандон',
+        'ебало',
+        'блять',
+        'трахать',
+        'ебать',
+        'ёбанн',
+        'ебанн',
+        'заеб',
+        'oтъеб',
+        'херня',
+        'иди нахер',
+      ],
+    },
     strikeAnswers: {
       song: {
         abuse_location: {
@@ -219,6 +313,7 @@ let $const = (() => {
         video_type: { value: 'compilation' },
         video_contents: [{ value: 'other' }],
         video_segment: true,
+        visual_segment: true,
         confidence_level: { value: 'very_confident' },
       },
     },
@@ -1236,6 +1331,7 @@ let $utils = {
       setTimeout(() => n.close(), $config.NOTIFICATION_TIMEOUT_SEC * 1000);
   },
   removeLock(reset = false) {
+    return;
     let lock = shadowDOMSearch('yurt-review-activity-dialog')[0];
     lock.lockTimeoutSec = 3000;
     lock.secondsToExpiry = 3000;
@@ -1350,7 +1446,9 @@ function answerQuestion(question, answers) {
   if (questionId === 'abuse_location') {
     listItem(abuse_location.listItem);
     checklist(abuse_location.checklist);
-  } else if (questionId === 'applicable_ve_group') {
+  } else if (
+    ['applicable_ve_group', 'applicable_ve_actor'].includes(questionId)
+  ) {
     listItem(applicable_ve_group);
   } else if (questionId === 'act_type') {
     listItem(act_type);
@@ -1365,8 +1463,8 @@ function answerQuestion(question, answers) {
   } else if (questionId === 'borderline_video/borderline_decision') {
     listItem();
   } else if (
-    (questionId === 'video_segment' || questionId === 'audio_segment') &&
-    (audio_segment || video_segment)
+    ['video_segment', 'audio_segment', 'visual_segment'].includes(questionId) &&
+    (audio_segment || video_segment || visual_segment)
   ) {
     clickElement('tcs-button', {
       'data-test-id': 'label-questionnaire-time-annotation-button',
@@ -1707,10 +1805,9 @@ class __UI {
     createButton() {},
     createDropdown() {},
     createSwitch(label, className) {
-      let node =
-        $utils.strToNode(`<tcs-view padding="small" fillwidth="" display="flex" spec="row" wrap="nowrap" align="stretch" spacing="none"><mwc-formfield>
-    <mwc-switch class=${className} id=${className}></mwc-switch>
-  </mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`);
+      let node = $utils.strToNode(
+        `<tcs-view padding="small" fillwidth="" display="flex" spec="row" wrap="nowrap" align="stretch" spacing="none"><mwc-formfield><mwc-switch class=${className} id=${className}></mwc-switch></mwc-formfield><tcs-text text=${label} class="wellness-label" spec="body" texttype="default"></tcs-text></tcs-view>`
+      );
 
       return node;
     },
@@ -2419,7 +2516,7 @@ let rightPanel = (function () {
 
 function addFilterControls() {
   let onFilterTranscript = () => {
-    setTimeout(() => filterTranscript($const.violativeWords), 1);
+    setTimeout(() => filterTranscriptByCategory(), 1);
   };
 
   uiFactory.filterControlsPanel.appendChild(
@@ -2445,24 +2542,13 @@ let onHandlers = {
       observers.mutationConfig
     );
 
-    // click reviews tab
-    // setTimeout(() => {
-    // console.log("[i] Click 'My Reviews Tab'");
-    // click.element('mwc-tab', {
-    //   label: '"My Reviews (0)"',
-    // });
-    // click.element('mwc-tab', {
-    //   label: '"My Reviews"',
-    // });
-    // }, 1500);
-
-    setTimeout(click.myReviews, 1500);
+    setTimeout(click.myReviews, 1000);
   },
   onScrollFilterTranscript() {
     try {
       shadowDOMSearch('.transcript-container')[0].addEventListener(
         'scroll',
-        $lib._debounce(() => filterTranscript($const.violativeWords), 200)
+        () => $lib._debounce(() => filterTranscriptByCategory, 200)
       );
     } catch (e) {
       console.log(e.stack);
@@ -2503,6 +2589,5 @@ function $main() {
 }
 
 $main();
-$utils.removeLock();
 
 // [✅] radu pidar
