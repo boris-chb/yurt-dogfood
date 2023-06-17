@@ -17,6 +17,14 @@ let observers = {
       }
     }
   }),
+  transcriptObserver: new MutationObserver((mutationsList, _) => {
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'childList') {
+        console.log('TRANSCRIPT CHANGED');
+        break;
+      }
+    }
+  }),
   mutationConfig: { childList: true },
 };
 
@@ -84,6 +92,14 @@ let uiFactory = {
     return tmp.childNodes;
   },
 
+  showNotesRecommendations(policyId) {
+    $ui.components
+      .recommendationPanel({
+        notesArr: recommendationNotes.strike[policyId],
+      })
+      .render();
+  },
+
   get filterControlsPanel() {
     return shadowDOMSearch('.filter-controls-on')?.[0];
   },
@@ -103,12 +119,11 @@ let uiFactory = {
 };
 
 let $config = {
-  SU: true,
+  SU: false,
   USE_KEYPRESS: false,
   COMMENTS_TIMER_MIN: 1,
-  CLICK_BUTTON_RETRY_COUNT: 50,
+  CLICK_BUTTON_RETRY_COUNT: 100,
   CLICK_BUTTON_INTERVAL_MS: 1,
-  FUNCTION_CALL_INTERVAL_MS: 1,
   FUNCTION_CALL_RETRY_MS: 100,
   NOTIFICATION_TIMEOUT_SEC: 10,
   showLogs: true,
@@ -183,7 +198,6 @@ let $const = (() => {
         'хуя',
         'охуел',
         'охуительно',
-        'хуител',
         'дрочить',
         'залупа',
         'пиздец',
@@ -196,7 +210,6 @@ let $const = (() => {
         'ебать',
         'ёбанн',
         'ебанн',
-        "ебаная",
         'заеб',
         'oтъеб',
         'херня',
@@ -667,7 +680,7 @@ let $utils = {
         btn = shadowDOMSearch(queryStr)?.[0];
       }
 
-      if (btn?.active || btn?.checked) return
+      if (btn?.active || btn?.checked) return;
 
       // Try again until the btn renders
       let btnMissingOrDisabled = !btn || btn?.disabled;
@@ -734,7 +747,7 @@ let $utils = {
   get: {
     timeElapsed() {
       var timeDiff = Math.round(
-        (new Date() - new Date($reviewRoot.allocateStartTime)) / 1000
+        (new Date() - new Date($reviewRoot?.allocateStartTime)) / 1000
       );
 
       if (timeDiff === 300) $utils.sendNotification('⏳ 5 min');
@@ -1271,15 +1284,13 @@ let $utils = {
   },
   removeLock() {
     let lock = shadowDOMSearch('yurt-review-activity-dialog')?.[0];
-    lock?.lockTimeoutSec = 3000;
-    lock?.secondsToExpiry = 3000;
-    lock?.onExpired = () => {};
+    if (lock) {
+      lock.lockTimeoutSec = 3000;
+      lock.secondsToExpiry = 3000;
+      lock.onExpired = () => {};
+    }
 
-    console.log(
-      `🔐LOCK: ${$utils.formatTime(
-        shadowDOMSearch('yurt-review-activity-dialog')[0].secondsToExpiry
-      )}`
-    );
+    console.log(`🔐LOCK: ${$utils.formatTime(lock?.secondsToExpiry)}`);
   },
 
   seekVideo(timestampStr) {
@@ -1339,13 +1350,33 @@ let $lib = {
     let timeoutId;
 
     return function () {
-      const context = this;
       const args = arguments;
 
       clearTimeout(timeoutId);
       timeoutId = setTimeout(function () {
-        func.apply(context, args);
+        func.apply(this, args);
       }, delay);
+    };
+  },
+  _throttle(func, delay) {
+    let timerId;
+    let lastExecutedTime = 0;
+
+    return function (...args) {
+      const currentTime = Date.now();
+
+      if (currentTime - lastExecutedTime >= delay) {
+        // It's time to execute the function
+        func.apply(this, args);
+        lastExecutedTime = currentTime;
+      } else {
+        // Schedule the function execution after the remaining delay
+        clearTimeout(timerId);
+        timerId = setTimeout(() => {
+          func.apply(this, args);
+          lastExecutedTime = Date.now();
+        }, delay - (currentTime - lastExecutedTime));
+      }
     };
   },
 };
@@ -1370,6 +1401,7 @@ function answerQuestion(question, answers) {
     clickNext,
   } = $utils;
 
+  const questionnaire = shadowDOMSearch('yurt-core-questionnaire')?.[0];
   // questionId is always last
   let lastElementIndex = question.id.split('/').length - 1;
   let questionId = question.id.split('/')[lastElementIndex];
@@ -1415,10 +1447,10 @@ function answerQuestion(question, answers) {
   clickNext();
 
   console.log(`[✅] Question Answered: ${questionId}`);
-  if (question.deferTraversal) {
+  if (question.deferTraversal || questionnaire.labellingGraph.isCompleted) {
+    console.log('[✅] Questionnaire Submitted');
     clickDone();
     clearInterval($timers.STRIKE_ID);
-    console.log('[✅] Questionnaire Submitted');
     // render notes recommendations for strike with chosen policy id
 
     const chosenPolicyId = shadowDOMSearch('yurt-core-questionnaire')?.[0]
@@ -2298,6 +2330,7 @@ let action = {
         () => answerQuestionnaire(answers),
         $config.CLICK_BUTTON_INTERVAL_MS
       );
+      setTimeout(() => clearInterval($timers.STRIKE_ID), 10000);
     },
   },
   comment: {
@@ -2511,9 +2544,9 @@ function filterTranscriptByCategory(
     return adultWords;
   });
 
-  console.log('veWords', veWords);
-  console.log('hateWords', hateWords);
-  console.log('adultWords', adultWords);
+  // console.log('veWords', veWords);
+  // console.log('hateWords', hateWords);
+  // console.log('adultWords', adultWords);
 
   veWords.forEach((word) => highlighter(word, 've'));
   hateWords.forEach((word) => highlighter(word, 'hate'));
@@ -2530,9 +2563,19 @@ function addFilterControls() {
   );
 }
 
-function _filterTranscript() {
-  $lib._debounce(() => setTimeout(() => filterTranscriptByCategory(), 100), 300)()
-}
+let debouncedFilterTranscript = $lib._debounce(
+  () => filterTranscriptByCategory(),
+  1000
+);
+
+let throttledFilterTranscript = $lib._throttle(
+  () => filterTranscriptByCategory(),
+  2000
+);
+
+let _throttleTest = $lib._throttle(() => console.log('throttling...'), 2000);
+
+let _debounceTest = $lib._debounce(() => console.log('debouncing...'), 2000);
 
 let onHandlers = {
   newVideo() {
@@ -2555,10 +2598,11 @@ let onHandlers = {
     setTimeout(click.myReviews, 1000);
   },
   onScrollFilterTranscript() {
+    // for testing WbpGScJMwag
     try {
       shadowDOMSearch('.transcript-container')[0].addEventListener(
         'scroll',
-        _filterTranscript
+        () => throttledFilterTranscript()
       );
     } catch (e) {
       console.log(e.stack);
@@ -2571,7 +2615,6 @@ function drawUI() {
     uiFactory.rightSidebar.appendChild(rightPanel);
   !shadowDOMSearch('.stopwatch') &&
     uiFactory.header.appendChild($ui.components.stopwatchPanel.stopwatch);
-
 }
 
 function $main() {
@@ -2600,5 +2643,4 @@ function $main() {
 }
 
 $main();
-
 // [✅] radu pidar
