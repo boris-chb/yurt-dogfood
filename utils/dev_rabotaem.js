@@ -67,79 +67,6 @@ function expandTranscriptContainer() {
   }
 }
 
-function highlighter(elem, type = 've') {
-  if (type === 've') {
-    elem.style.backgroundColor = 'red';
-  }
-
-  if (type === 'hate') {
-    elem.style.color = 'white';
-    elem.style.backgroundColor = 'purple';
-    elem.style.border = '1px solid yellow';
-  }
-
-  if (type === 'adult') {
-    elem.classList.add('highlight');
-  }
-}
-
-function filterTranscript(keywordsArr = $const.violativeWords) {
-  console.log('filtering transcript...');
-  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
-
-  let filteredWords = transcriptNodesArr.filter((wordSpan) =>
-    keywordsArr.some((word) =>
-      wordSpan.textContent.toLowerCase().includes(word)
-    )
-  );
-
-  console.log(filteredWords);
-
-  filteredWords.forEach((word) => highlighter(word));
-  return filteredWords;
-}
-
-function filterTranscriptByCategory(
-  wordsToFilter = $const.violativeWordsByCategory
-) {
-  console.log('filtering transcript by category...');
-  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
-
-  console.log(transcriptNodesArr);
-
-  let veWords = transcriptNodesArr.filter((wordSpan) => {
-    const veWords = wordsToFilter.ve.some((word) =>
-      wordSpan.textContent.toLowerCase().includes(word)
-    );
-
-    return veWords;
-  });
-
-  let hateWords = transcriptNodesArr.filter((wordSpan) => {
-    const hateWords = wordsToFilter.hate.some((word) =>
-      wordSpan.textContent.toLowerCase().includes(word)
-    );
-
-    return hateWords;
-  });
-
-  let adultWords = transcriptNodesArr.filter((wordSpan) => {
-    const adultWords = wordsToFilter.adult.some((word) =>
-      wordSpan.textContent.toLowerCase().includes(word)
-    );
-
-    return adultWords;
-  });
-
-  console.log('veWords', veWords);
-  console.log('hateWords', hateWords);
-  console.log('adultWords', adultWords);
-
-  veWords.forEach((word) => highlighter(word, 've'));
-  hateWords.forEach((word) => highlighter(word, 'hate'));
-  adultWords.forEach((word) => highlighter(word, 'adult'));
-}
-
 let uiFactory = {
   createButton(label, onClick) {
     let btn = this.strToNode(
@@ -532,6 +459,13 @@ let recommendationNotes = {
           `please check for H&D violations @${$utils.get.videoTimestamp()}\napprove for VE`,
       },
     ],
+    haras: [
+      {
+        title: 'Doxxing @',
+        value: () =>
+          `please check for doxxing @${$utils.get.videoTimestamp()}\napprove for VE`,
+      },
+    ],
     ds: [
       {
         title: 'Terms of Service',
@@ -729,6 +663,8 @@ let $utils = {
 
         btn = shadowDOMSearch(queryStr)?.[0];
       }
+
+      if (btn?.active || btn?.checked) return;
 
       // Try again until the btn renders
       let btnMissingOrDisabled = !btn || btn?.disabled;
@@ -1330,17 +1266,14 @@ let $utils = {
     close &&
       setTimeout(() => n.close(), $config.NOTIFICATION_TIMEOUT_SEC * 1000);
   },
-  removeLock(reset = false) {
-    return;
-    let lock = shadowDOMSearch('yurt-review-activity-dialog')[0];
-    lock.lockTimeoutSec = 3000;
-    lock.secondsToExpiry = 3000;
-    lock.onExpired = () => {};
-
-    if (reset) {
-      lock.lockTimeoutSec = 1200;
-      lock.secondsToExpiry = 1200;
+  removeLock() {
+    let lock = shadowDOMSearch('yurt-review-activity-dialog')?.[0];
+    if (lock) {
+      lock.lockTimeoutSec = 3000;
+      lock.secondsToExpiry = 3000;
+      lock.onExpired = () => {};
     }
+
     console.log(
       `🔐LOCK: ${$utils.formatTime(
         shadowDOMSearch('yurt-review-activity-dialog')[0].secondsToExpiry
@@ -1436,6 +1369,7 @@ function answerQuestion(question, answers) {
     clickNext,
   } = $utils;
 
+  const questionnaire = shadowDOMSearch('yurt-core-questionnaire')?.[0];
   // questionId is always last
   let lastElementIndex = question.id.split('/').length - 1;
   let questionId = question.id.split('/')[lastElementIndex];
@@ -1481,7 +1415,7 @@ function answerQuestion(question, answers) {
   clickNext();
 
   console.log(`[✅] Question Answered: ${questionId}`);
-  if (question.deferTraversal) {
+  if (question.deferTraversal || questionnaire.labellingGraph.isCompleted) {
     clickDone();
     clearInterval($timers.STRIKE_ID);
     console.log('[✅] Questionnaire Submitted');
@@ -1543,6 +1477,7 @@ let $props = {
       options: [
         { value: $const.veGroups.wagner, label: 'Wagner PMC' },
         { value: $const.veGroups.alq, label: 'Al Qaeda' },
+        { value: $const.veGroups.ik, label: 'Imarat Kavkaz' },
         { value: $const.veGroups.isis, label: 'ISIS' },
         { value: $const.veGroups.hamas, label: 'Hamas' },
         { value: $const.veGroups.hezbollah, label: 'Hezbollah' },
@@ -2514,6 +2449,79 @@ let rightPanel = (function () {
   return container;
 })();
 
+function highlighter(elem, type = 've') {
+  if (type === 've') {
+    elem.style.backgroundColor = 'red';
+  }
+
+  if (type === 'hate') {
+    elem.style.color = 'white';
+    elem.style.backgroundColor = 'purple';
+    elem.style.border = '1px solid yellow';
+  }
+
+  if (type === 'adult') {
+    elem.classList.add('highlight');
+  }
+}
+
+function filterTranscript(keywordsArr = $const.violativeWords) {
+  console.log('filtering transcript...');
+  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
+
+  let filteredWords = transcriptNodesArr.filter((wordSpan) =>
+    keywordsArr.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    )
+  );
+
+  console.log(filteredWords);
+
+  filteredWords.forEach((word) => highlighter(word));
+  return filteredWords;
+}
+
+function filterTranscriptByCategory(
+  wordsToFilter = $const.violativeWordsByCategory
+) {
+  console.log('filtering transcript by category...');
+  let transcriptNodesArr = [...shadowDOMSearch('.transcript')];
+
+  console.log(transcriptNodesArr);
+
+  let veWords = transcriptNodesArr.filter((wordSpan) => {
+    const veWords = wordsToFilter.ve.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    );
+
+    return veWords;
+  });
+
+  let hateWords = transcriptNodesArr.filter((wordSpan) => {
+    const hateWords = wordsToFilter.hate.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    );
+
+    return hateWords;
+  });
+
+  let adultWords = transcriptNodesArr.filter((wordSpan) => {
+    const adultWords = wordsToFilter.adult.some((word) =>
+      wordSpan.textContent.toLowerCase().includes(word)
+    );
+
+    return adultWords;
+  });
+
+  console.log('veWords', veWords);
+  console.log('hateWords', hateWords);
+  console.log('adultWords', adultWords);
+
+  veWords.forEach((word) => highlighter(word, 've'));
+  hateWords.forEach((word) => highlighter(word, 'hate'));
+  adultWords.forEach((word) => highlighter(word, 'adult'));
+}
+
 function addFilterControls() {
   let onFilterTranscript = () => {
     setTimeout(() => filterTranscriptByCategory(), 1);
@@ -2522,6 +2530,13 @@ function addFilterControls() {
   uiFactory.filterControlsPanel.appendChild(
     uiFactory.createButton('Filter Transcript', onFilterTranscript)
   );
+}
+
+function _filterTranscript() {
+  $lib._debounce(
+    () => setTimeout(() => filterTranscriptByCategory(), 100),
+    300
+  )();
 }
 
 let onHandlers = {
@@ -2548,7 +2563,7 @@ let onHandlers = {
     try {
       shadowDOMSearch('.transcript-container')[0].addEventListener(
         'scroll',
-        () => $lib._debounce(() => filterTranscriptByCategory, 200)
+        _filterTranscript
       );
     } catch (e) {
       console.log(e.stack);
