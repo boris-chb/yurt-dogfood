@@ -7,7 +7,7 @@ let selectedVEGroup;
 let $reviewRoot = shadowDOMSearch('yurt-review-root')?.[0];
 
 let observers = {
-  mutationObserver: new MutationObserver((mutationsList, observer) => {
+  mutationObserver: new MutationObserver((mutationsList) => {
     // Iterate through the mutations
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList') {
@@ -17,7 +17,7 @@ let observers = {
       }
     }
   }),
-  transcriptObserver: new MutationObserver((mutationsList, _) => {
+  transcriptObserver: new MutationObserver((mutationsList) => {
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList') {
         console.log('TRANSCRIPT CHANGED');
@@ -123,7 +123,7 @@ let $config = {
   USE_KEYPRESS: false,
   COMMENTS_TIMER_MIN: 1,
   CLICK_BUTTON_RETRY_COUNT: 100,
-  CLICK_BUTTON_INTERVAL_MS: 1,
+  CLICK_BUTTON_INTERVAL_MS: 100,
   FUNCTION_CALL_RETRY_MS: 100,
   NOTIFICATION_TIMEOUT_SEC: 10,
   showLogs: true,
@@ -1606,11 +1606,7 @@ let $props = {
       },
       {
         text: '🥩 Graphic',
-        onClick: () =>
-          action.video.route(
-            `graphic violence ${$utils.get.queue.type()}`,
-            'gv'
-          ),
+        onClick: () => action.video.route(`graphic violence enforcement`, 'gv'),
       },
       {
         text: '⚡ Hate',
